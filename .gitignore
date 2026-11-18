@@ -11,3 +11,5 @@ build/
 dist/
 .claude/
 skills-lock.json
+.agents/
+brag-output/
