@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block body %}
+{% if msg %}<div class="card text-sky-200">{{ msg }}</div>{% endif %}
+
+<div class="card">
+  <h2 class="font-semibold mb-1">Paste a live link</h2>
+  <p class="text-xs text-gray-400 mb-3">Any platform: Twitch, YouTube, Kick, TikTok, Facebook, Instagram, X, Rumble, Trovo, DLive, Bilibili, SOOP,
+    any page with a live player, raw .m3u8 / RTMP / SRT URLs, or a local video file path.</p>
+  <form method="post" action="/quick" class="grid md:grid-cols-6 gap-3 items-end">
+    <div class="md:col-span-4"><label>Live link or file path</label>
+      <input name="url" required autofocus placeholder="https://www.twitch.tv/yourname  ·  https://kick.com/you  ·  https://youtube.com/@you/live"></div>
+    <div class="md:col-span-2"><label>Name (optional)</label><input name="name" placeholder="auto from link"></div>
+    <div class="md:col-span-2"><label>Whose stream? (required)</label>
+      <select name="permission" required>
+        <option value="" selected disabled>choose…</option>
+        <option value="own">My own stream</option>
+        <option value="allowed">Creator allowed me to clip</option>
+      </select></div>
+    <div><label>Mode</label><select name="mode">
+      <option value="best_moments">Best moments</option>
+      <option value="continuous">Continuous cuts</option>
+      <option value="hybrid">Hybrid</option></select></div>
+    <div><label>Output</label><select name="outputs">
+      <option value="shorts">Shorts 9:16</option>
+      <option value="long">Long 16:9</option>
+      <option value="both">Both</option></select></div>
+    <label class="flex items-center gap-2 text-sm text-gray-200 pb-1"><input type="checkbox" name="watch" class="w-auto" checked> Keep watching</label>
+    <button class="btn btn-p">▶ Start clipping</button>
+  </form>
+</div>
+
+<div hx-get="/partials/status" hx-trigger="load, every 5s" hx-swap="innerHTML">
+  <div class="card text-gray-400">Loading…</div>
+</div>
+{% endblock %}

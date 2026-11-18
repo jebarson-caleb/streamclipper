@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="flex flex-wrap gap-2">
+  {% for k in ['','pending','ready','approved','scheduled','published','failed','rejected'] %}
+  <a href="/clips?status={{ k }}" class="pill {{ 'bg-sky-700' if status==k }}">{{ k or 'all' }}</a>{% endfor %}
+</div>
+{% if review %}<div class="card text-yellow-300 text-sm">Review mode is ON: only approved clips are uploaded.</div>{% endif %}
+<div class="grid md:grid-cols-2 gap-3">
+{% for c in clips %}
+<div class="card space-y-2" id="clip{{ c.id }}">
+  <div class="flex gap-2 items-center flex-wrap">
+    <span class="pill">{{ c.format }}</span><span class="pill">{{ c.status }}</span>
+    <span class="text-xs text-gray-400">score {{ '%.1f' % c.score }} · {{ c.category }} · {{ '%.0f' % c.duration }}s</span>
+    {% if c.publish_at %}<span class="text-xs text-sky-300 ml-auto">release {{ c.publish_at|dt }}</span>{% endif %}
+  </div>
+  {% if c.path and c.status not in ['pending','rendering'] %}
+  <video controls preload="none" class="w-full rounded {{ 'max-h-96' if c.format=='short' else '' }} bg-black"
+         {% if c.thumb_path %}poster="/media/clip/{{ c.id }}?thumb=1"{% endif %} src="/media/clip/{{ c.id }}"></video>
+  {% endif %}
+  <form method="post" action="/clips/{{ c.id }}/edit" class="space-y-1">
+    <input name="title" value="{{ c.title }}" {{ 'disabled' if c.status in ['scheduled','published'] }}>
+    <textarea name="description" rows="3" {{ 'disabled' if c.status in ['scheduled','published'] }}>{{ c.description }}</textarea>
+    {% if c.status not in ['scheduled','published'] %}<button class="btn">Save text</button>{% endif %}
+  </form>
+  {% if c.youtube_id %}<a class="text-sky-400 text-sm" target="_blank" href="https://youtu.be/{{ c.youtube_id }}">youtu.be/{{ c.youtube_id }}</a> · {{ c.views }} views{% endif %}
+  {% if c.error %}<div class="text-xs text-red-400 whitespace-pre-wrap">{{ c.error[:400] }}</div>{% endif %}
+  <div class="flex gap-1 flex-wrap">
+    {% if c.status=='ready' %}<form method="post" action="/clips/{{ c.id }}/approve"><button class="btn btn-p">Approve</button></form>{% endif %}
+    {% if c.status not in ['scheduled','published','rejected'] %}<form method="post" action="/clips/{{ c.id }}/reject"><button class="btn btn-d">Reject</button></form>{% endif %}
+    {% if c.status in ['failed','rejected'] %}<form method="post" action="/clips/{{ c.id }}/retry"><button class="btn">Retry</button></form>{% endif %}
+    {% if c.status in ['ready','approved','failed'] %}<form method="post" action="/clips/{{ c.id }}/rerender"><button class="btn">Re-render</button></form>{% endif %}
+  </div>
+</div>
+{% else %}<div class="text-gray-400">No clips.</div>{% endfor %}
+</div>
+{% endblock %}

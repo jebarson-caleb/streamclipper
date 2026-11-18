@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="card overflow-x-auto">
+<table class="w-full text-sm">
+  <tr class="text-left text-gray-400"><th>Time</th><th>Kind</th><th>Score</th><th>LLM / signal</th><th>Category</th><th>Title · reason</th><th>Status</th><th></th></tr>
+  {% for m in moments %}
+  <tr class="border-t border-gray-800 align-top">
+    <td class="py-2 whitespace-nowrap">{{ m.start|hms }}–{{ m.end|hms }}</td>
+    <td>{{ m.kind }}</td>
+    <td class="font-bold {{ 'text-green-400' if m.score >= 7 else 'text-gray-300' }}">{{ '%.1f' % m.score }}</td>
+    <td class="text-xs text-gray-400">{{ 'n/a' if m.llm_score < 0 else '%.1f' % m.llm_score }} / {{ '%.1f' % m.signal_score }}</td>
+    <td>{{ m.category }}</td>
+    <td><div>{{ m.title }}</div><div class="text-xs text-gray-400">{{ m.reason }}</div>
+      <details class="text-xs text-gray-500"><summary>transcript</summary>{{ m.transcript }}</details></td>
+    <td><span class="pill">{{ m.status }}</span></td>
+    <td>{% if m.status in ['candidate','rejected'] %}
+      <form method="post" action="/moments/{{ m.id }}/force" class="flex gap-1">
+        <select name="fmt" class="w-auto"><option>short</option><option>long</option></select>
+        <button class="btn">Make clip</button></form>{% endif %}</td>
+  </tr>
+  {% else %}<tr><td colspan="8" class="text-gray-400 py-3">No moments yet.</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}

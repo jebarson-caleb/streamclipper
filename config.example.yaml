@@ -1,0 +1,87 @@
+# Copy to config.yaml and edit. Every key is optional; defaults live in streamclipper/config.py.
+
+data_dir: ./data                 # recordings, renders, database, tokens
+dashboard:
+  host: 127.0.0.1
+  port: 8765
+
+review_mode: false               # false = fully automatic. true = clips wait for Approve in the dashboard.
+timezone: local                  # "local" = this PC's timezone, or e.g. Asia/Kolkata, America/New_York
+
+monitor:
+  poll_seconds: 60
+
+capture:
+  segment_seconds: 20           # shorter = live clips appear sooner
+  buffer_hours: 6                # raw segments older than this are deleted (unless a clip still needs them)
+  quality: "720p,720p60,480p,best"
+  min_free_gb: 5                 # disk guard: no new recordings below this; active ones stop below half
+
+whisper:
+  model: small                   # 4 GB VRAM: small (fast) or medium (better, slower)
+  device: cuda                   # cuda | cpu
+  compute_type: int8_float16     # int8 on cpu
+  vad: false                     # true = skip non-speech (faster) but loses commentary over loud crowds/music
+
+llm:
+  base_url: http://127.0.0.1:11434
+  model: qwen2.5:3b-instruct-q4_K_M
+  fallback_model: llama3.2:3b
+  keep_alive: 30s                # short, so VRAM is released for Whisper
+  timeout_seconds: 180
+
+detect:
+  interval_seconds: 60
+  live_interval_seconds: 15      # live streams are re-checked this often (continuous clipping)
+  pad_before: 20
+  pad_after: 10
+  min_clip: 15
+  max_short: 58
+  max_long_moment: 180
+  peak_z: 1.8                    # how "hyped" a second must be to become a candidate
+  min_peak_gap: 20               # seconds between two separate highlights
+  weights: {audio: 1.0, chat: 1.5, keywords: 1.2, scene: 0.4}
+  keywords: ["LUL", "LOL", "KEKW", "OMEGALUL", "W", "POG", "POGGERS", "CLIP", "CLIP IT", "OMG", "WTF", "LMAO", "😂", "💀"]
+  hype_bonus_per_z: 0.5          # final score = LLM score (0-10) + this x (hype above peak_z)
+  hype_bonus_max: 1.5            # ...capped at this bonus
+
+render:
+  encoder: auto                  # auto | h264_nvenc | libx264
+  vertical_layout: auto          # auto | track (follow the action) | crop (face) | split (facecam+game) | fit_blur
+  track_min_coverage: 0.35       # if the 9:16 window can't hold this share of the motion, use fit_blur
+  font: "Arial Black"
+  font_size_short: 78
+  font_size_long: 54
+  highlight_color: "&H0000F0FF"  # ASS BGR: yellow
+  progress_bar: true
+  hook_card: true
+  mute_profanity: false
+  profanity: ["fuck", "shit", "bitch", "cunt", "nigger", "faggot"]
+  compile_top_n: 10
+
+publish:
+  enabled: true
+  client_secret: ./client_secret.json
+  category_id: "20"              # 20 = Gaming
+  daily_quota: 10000
+  upload_cost: 1600
+  max_uploads_per_day: 6
+  min_lead_minutes: 20
+  slots:
+    short: ["11:00", "15:00", "19:00", "22:00"]
+    long: ["18:00"]
+  upload_captions: false         # captions.insert costs 400 quota units per track
+
+retention:
+  delete_raw_after_hours: 6
+  delete_renders_after_days: 3   # only after a clip is published
+  delete_renders_after_upload: false   # true = delete the local mp4/srt/thumb as soon as YouTube has it
+
+notify:
+  discord_webhook: ""
+  telegram_bot_token: ""
+  telegram_chat_id: ""
+
+analytics:
+  enabled: true
+  interval_hours: 12

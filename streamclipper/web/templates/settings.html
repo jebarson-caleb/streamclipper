@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block body %}
+{% if msg %}<div class="card text-sky-300">{{ msg }}</div>{% endif %}
+<div class="card space-y-3">
+  <h2 class="font-semibold">YouTube accounts</h2>
+  {% if not secret_ok %}
+  <div class="text-yellow-300 text-sm">OAuth client file not found at <code>{{ s.publish.client_secret }}</code>.
+    Create a Google Cloud project → enable "YouTube Data API v3" → OAuth consent screen → Credentials → OAuth client ID (Desktop app) → download JSON as <code>client_secret.json</code> in the project folder.</div>
+  {% endif %}
+  {% for a in accounts %}<div class="text-sm">✅ <b>{{ a }}</b> · quota used today {{ quota.get(a, 0) }}/{{ s.publish.daily_quota }}</div>
+  {% else %}<div class="text-sm text-gray-400">No account connected yet.</div>{% endfor %}
+  <form method="post" action="/youtube/connect" class="flex gap-2 items-end max-w-md">
+    <div class="flex-1"><label>Account nickname</label><input name="account" value="default"></div>
+    <button class="btn btn-p">Connect (opens browser)</button>
+  </form>
+</div>
+
+<div class="card space-y-2">
+  <h2 class="font-semibold">Automation</h2>
+  <form method="post" action="/settings/review" class="flex items-center gap-3">
+    <span class="text-sm">Review mode is <b>{{ 'ON' if s.review_mode else 'OFF (fully automatic)' }}</b></span>
+    <button class="btn">Toggle</button>
+    <span class="text-xs text-gray-500">(resets to config.yaml on restart)</span>
+  </form>
+  <div class="text-sm text-gray-300">Release slots ({{ s.timezone }}): Shorts {{ s.publish.slots.get('short') }} · Long {{ s.publish.slots.get('long') }} · max {{ s.publish.max_uploads_per_day }}/day</div>
+</div>
+
+<div class="card">
+  <h2 class="font-semibold mb-2">Active configuration</h2>
+  <p class="text-xs text-gray-400 mb-2">Edit <code>config.yaml</code> and restart to change these.</p>
+  <pre class="text-xs whitespace-pre-wrap text-gray-300">{{ s.model_dump_json(indent=2) }}</pre>
+</div>
+{% endblock %}

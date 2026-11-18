@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>StreamClipper</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com/3.4.5"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <style>
+    :root {
+      --bg: #0a0d14; --panel: #111622; --panel-2: #161c2b; --line: #222a3b; --line-2: #2e384d;
+      --text: #e6e9f0; --muted: #8b93a7; --accent: #7c5cff; --accent-2: #6847f5; --danger: #e5484d;
+    }
+    html, body { background: var(--bg); color: var(--text); font-family: Inter, system-ui, sans-serif; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 1.1rem; }
+    .btn { display: inline-flex; align-items: center; gap: .35rem; padding: .42rem .9rem; border-radius: 9px;
+           background: var(--panel-2); border: 1px solid var(--line-2); font-size: .84rem; font-weight: 500;
+           transition: background .15s, border-color .15s; white-space: nowrap; }
+    .btn:hover { background: #1e2638; border-color: #3b4763; }
+    .btn-p { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn-p:hover { background: var(--accent-2); border-color: var(--accent-2); }
+    .btn-d { background: transparent; border-color: #5a2328; color: #ff8a8e; }
+    .btn-d:hover { background: #2a1416; border-color: var(--danger); }
+    input, select, textarea { background: var(--bg); border: 1px solid var(--line-2); border-radius: 9px;
+           padding: .45rem .65rem; width: 100%; font-size: .9rem; color: var(--text); }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent);
+           box-shadow: 0 0 0 3px rgba(124, 92, 255, .25); }
+    label { font-size: .74rem; color: var(--muted); font-weight: 500; }
+    .pill { display: inline-block; font-size: .7rem; font-weight: 600; padding: .15rem .6rem; border-radius: 999px;
+            background: var(--panel-2); border: 1px solid var(--line-2); color: #c4c9d6; }
+    h2 { font-size: 1rem; }
+    .nav-link { display: flex; align-items: center; gap: .7rem; padding: .55rem .8rem; border-radius: 10px;
+                font-size: .88rem; color: var(--muted); font-weight: 500; }
+    .nav-link:hover { background: var(--panel-2); color: var(--text); }
+    .nav-link.active { background: rgba(124, 92, 255, .14); color: #fff; }
+    .nav-link.active svg { color: var(--accent); }
+    .nav-link svg { width: 18px; height: 18px; flex-shrink: 0; }
+    table th { font-weight: 500; font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; padding-bottom: .5rem; }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+  </style>
+</head>
+<body class="min-h-screen">
+  {% set nav = [
+    ("home", "Dashboard", "M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10"),
+    ("channels", "Channels", "M4 6h16M4 12h16M4 18h10"),
+    ("moments", "Moments", "M13 2L3 14h8l-1 8 10-12h-8l1-8z"),
+    ("clips", "Clips & queue", "M4 5h16v14H4zM10 9l5 3-5 3z"),
+    ("settings", "Settings", "M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"),
+    ("logs", "Logs", "M4 4h16v16H4zM8 9h8M8 13h8M8 17h5"),
+  ] %}
+  <div class="flex min-h-screen">
+    <aside class="hidden md:flex w-60 shrink-0 flex-col border-r border-[color:var(--line)] bg-[color:var(--panel)] px-3 py-5 sticky top-0 h-screen">
+      <a href="/" class="flex items-center gap-2.5 px-2 mb-7">
+        <span class="grid place-items-center w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white text-lg">✂</span>
+        <span>
+          <span class="block font-bold tracking-tight">StreamClipper</span>
+          <span class="block text-[11px] text-[color:var(--muted)]">local AI clipper</span>
+        </span>
+      </a>
+      <nav class="space-y-1">
+        {% for key, label, icon in nav %}
+        <a href="/{{ '' if key=='home' else key }}" class="nav-link {{ 'active' if page==key }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{ icon }}"/></svg>
+          {{ label }}
+        </a>
+        {% endfor %}
+      </nav>
+      <div class="mt-auto px-2 text-[11px] text-[color:var(--muted)]">Runs on your PC · nothing leaves it except uploads</div>
+    </aside>
+
+    <div class="flex-1 min-w-0">
+      <nav class="md:hidden border-b border-[color:var(--line)] px-4 py-3 flex flex-wrap gap-3 items-center">
+        <span class="font-bold">✂ StreamClipper</span>
+        {% for key, label, icon in nav %}
+          <a href="/{{ '' if key=='home' else key }}" class="text-sm {{ 'text-white font-semibold' if page==key else 'text-gray-400' }}">{{ label }}</a>
+        {% endfor %}
+      </nav>
+      <header class="px-6 pt-6 pb-2 max-w-6xl mx-auto">
+        {% for key, label, icon in nav %}{% if page==key %}<h1 class="text-2xl font-bold tracking-tight">{{ label }}</h1>{% endif %}{% endfor %}
+      </header>
+      <main class="max-w-6xl mx-auto px-6 pb-10 pt-2 space-y-4">
+        {% block body %}{% endblock %}
+      </main>
+    </div>
+  </div>
+</body>
+</html>
