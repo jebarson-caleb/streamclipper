@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block body %}
+<section class="pt-10 pb-2 text-center" aria-labelledby="w-title">
+  <p class="eyebrow mb-4">Three steps and you're clipping.<br>Everything runs on this PC.</p>
+  <h1 id="w-title" class="display reveal text-[clamp(3rem,9vw,7rem)]">
+    <span class="ln"><span>Welcome to</span></span>
+    <span class="ln"><span><span class="serif scribble">StreamClipper<svg viewBox="0 0 300 20" preserveAspectRatio="none" aria-hidden="true"><path d="M3 14 C 60 4, 120 18, 180 9 S 270 6, 297 12"/></svg></span></span></span>
+  </h1>
+</section>
+
+{% if msg %}<p class="card-flat border-l-8 font-semibold" style="border-color:var(--blue)" role="status">{{ msg }}</p>{% endif %}
+
+{% include "_setup_steps.html" %}
+
+<section id="youtube" class="card tilt-l space-y-3 fade-up" style="border-width:6px" aria-labelledby="step3">
+  <div class="flex flex-wrap items-start gap-4">
+    <span class="display text-7xl" aria-hidden="true">02</span>
+    <div class="flex-1 min-w-[16rem] space-y-3">
+      <h2 id="step3" class="display text-3xl">YouTube <span class="serif">(optional)</span>
+        {% if st.accounts %}<span class="pill pill-blue align-middle">Connected</span>{% endif %}</h2>
+      <p class="hint">Connect a channel so finished clips upload and publish on schedule. Skip this and clips still render; they wait in Clips &amp; queue.</p>
+      {% if st.accounts %}
+        <p class="text-sm ok font-semibold">Connected: {{ st.accounts|join(", ") }}</p>
+      {% elif not st.secret %}
+        <ol class="list-decimal pl-5 text-sm space-y-1">
+          <li>Open the <a class="underline" href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank" rel="noopener">Google Cloud console<span class="sr-only"> (opens in a new tab)</span></a>, create a project and enable <b>YouTube Data API v3</b>.</li>
+          <li>Set up the <b>OAuth consent screen</b> and add yourself as a test user.</li>
+          <li>Under <b>Credentials</b>, create an <b>OAuth client ID</b> of type <b>Desktop app</b> and download the JSON file.</li>
+          <li>Choose that file here:</li>
+        </ol>
+        <form method="post" action="/setup/client-secret" enctype="multipart/form-data" class="flex flex-wrap gap-3 items-end">
+          <div class="flex-1 min-w-[14rem]"><label for="cs">Google client file (.json)</label><input id="cs" type="file" name="file" accept=".json,application/json" required></div>
+          <button class="btn">Save file</button>
+        </form>
+      {% else %}
+        <form method="post" action="/youtube/connect" class="flex flex-wrap gap-3 items-end">
+          <input type="hidden" name="back" value="/welcome">
+          <div class="flex-1 min-w-[12rem]"><label for="acc">Account nickname</label><input id="acc" name="account" value="default"></div>
+          <button class="btn btn-p">Connect YouTube <span class="arrow" aria-hidden="true">→</span><span class="sr-only"> (opens your browser)</span></button>
+        </form>
+        <p class="hint text-xs">Google keeps uploads private until your API project is audited; StreamClipper schedules them for you.</p>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="card frame-blue tilt-r space-y-3 fade-up" aria-labelledby="step4">
+  <div class="flex flex-wrap items-start gap-4">
+    <span class="display text-7xl" style="color:var(--blue)" aria-hidden="true">03</span>
+    <div class="flex-1 min-w-[16rem] space-y-3">
+      <h2 id="step4" class="display text-3xl">Your first <span class="serif">stream</span></h2>
+      <p class="hint">Paste a live link (Twitch, YouTube, Kick, TikTok and more) or a video file path. Only clip streams you own or have permission to clip.</p>
+      <form method="post" action="/quick" class="grid md:grid-cols-6 gap-4 items-end">
+        <div class="md:col-span-4"><label for="w-url">Live link or file path</label><input id="w-url" name="url" required placeholder="https://www.twitch.tv/yourname"></div>
+        <div class="md:col-span-2"><label for="w-perm">Whose stream?</label>
+          <select id="w-perm" name="permission" required><option value="" selected disabled>Choose…</option><option value="own">My own stream</option><option value="allowed">Creator allowed me</option></select></div>
+        <input type="hidden" name="mode" value="best_moments"><input type="hidden" name="outputs" value="shorts"><input type="hidden" name="watch" value="on">
+        <button class="btn btn-p justify-center py-3 md:col-span-2">Start clipping <span class="arrow" aria-hidden="true">→</span></button>
+        <p class="hint text-xs md:col-span-4">Starts with best moments as Shorts; change it later on the Channels page.</p>
+      </form>
+    </div>
+  </div>
+</section>
+
+<form method="post" action="/welcome/done" class="flex flex-wrap justify-center gap-3 pt-4">
+  <button class="btn btn-p py-3 px-6">Finish setup <span class="arrow" aria-hidden="true">→</span></button>
+  <button class="btn py-3 px-6" name="skip" value="1">Skip for now</button>
+</form>
+<p class="hint text-center text-xs">You can reopen this guide any time from Settings.</p>
+{% endblock %}

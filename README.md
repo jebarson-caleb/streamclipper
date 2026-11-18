@@ -16,25 +16,27 @@ StreamClipper runs in the background on your PC and does the following:
 
 It is built for a 4 GB GPU such as an RTX 3050: Whisper `small` int8 and a 3B Q4 LLM take turns on the GPU.
 
-## Requirements
+## Install (Windows)
 
-- Windows 10/11 (64-bit)
-- [ffmpeg](https://www.gyan.dev/ffmpeg/builds/) on `PATH` (`winget install Gyan.FFmpeg`)
-- [Ollama](https://ollama.com) for the local LLM (`winget install Ollama.Ollama`). Without it, clips are scored on signals only.
-- Optional: an NVIDIA GPU (4 GB is enough) for faster transcription and NVENC encoding
-- From source only: Python 3.11
+1. Download **`StreamClipper-Setup-<version>.exe`** from the [latest release](https://github.com/jebarson-caleb/streamclipper/releases/latest).
+2. Run it. It installs for your user only (no admin prompt) and adds Start-menu and desktop shortcuts.
+3. StreamClipper opens with a **setup guide**. While you read it, the app downloads its AI models once (about 2.5 GB):
+   1. **Getting the AI ready**: video engine, AI model and speech model, each with a live status.
+   2. **YouTube (optional)**: pick your Google OAuth client file and click Connect.
+   3. **Your first stream**: paste a live link and click Start clipping.
 
-## Desktop app (download)
+That's it: ffmpeg and the AI engine ([llama.cpp](https://github.com/ggml-org/llama.cpp)) are bundled inside the app, so nothing else gets installed.
+The AI runs on any NVIDIA, AMD or Intel GPU through Vulkan, or on the CPU.
 
-1. Download `StreamClipper-windows-x64.zip` from the [latest release](https://github.com/jebarson-caleb/streamclipper/releases/latest) and unzip it anywhere.
-2. Install ffmpeg and Ollama (see above).
-3. Run `StreamClipper\StreamClipper.exe`. The dashboard opens in its own window.
-   On first run it creates `config.yaml` and a `data\` folder next to the exe, starts Ollama and downloads the LLM model (about 2 GB).
+Windows may show a SmartScreen warning because the installer isn't code-signed yet: click **More info → Run anyway**. On PCs with **Smart App Control** turned on, Windows may block the unsigned installer outright until it's signed.
+Closing the window stops the pipeline. Reopen the guide any time from **Settings**. Your settings and clips live in `%LOCALAPPDATA%\Programs\StreamClipper`.
 
-The release build transcribes on the CPU. For GPU Whisper, build it yourself with `-Cuda` (see [Build the desktop app](#build-the-desktop-app)).
-Closing the window stops the pipeline. To keep clipping in the background, use the scheduled-task service from a source install instead.
+**Requirements:** Windows 10/11 64-bit, about 4 GB free disk for the app and models plus space for recordings. A GPU with 4 GB is enough; none is required.
 
 ## Quick start (from source)
+
+From source you need Python 3.11, [ffmpeg](https://www.gyan.dev/ffmpeg/builds/) and [Ollama](https://ollama.com) (`scripts\setup.ps1` installs all three). Set `llm.backend: llamacpp` in `config.yaml` to use the llama.cpp engine instead (run `scripts\fetch_vendor.ps1` first).
+
 
 1. Double-click **StreamClipper** on your Desktop (or `StreamClipper.bat`). The dashboard opens at http://127.0.0.1:8765.
    On first run, the .bat installs everything automatically. Ollama and the LLM model also start or download on their own.
@@ -118,7 +120,7 @@ This installs Python 3.11, ffmpeg and Ollama through winget, creates `.venv`, in
 ## Run
 
 ```powershell
-.\.venv\Scripts\python.exe -m streamclipper desktop      # dashboard in its own window (needs: pip install -e ".[desktop]")
+.\.venv\Scripts\python.exe -m streamclipper desktop      # dashboard in its own app window (Edge or Chrome)
 .\.venv\Scripts\python.exe -m streamclipper run          # dashboard at http://127.0.0.1:8765
 .\.venv\Scripts\python.exe -m streamclipper process-file my_vod.mp4 --mode best_moments --outputs both   # offline test, no upload
 powershell -ExecutionPolicy Bypass -File scripts\install_service.ps1   # start hidden at every logon
@@ -145,21 +147,24 @@ It checks format (1080×1920 / 1920×1080, 30 fps, Short length), clean start an
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-## Build the desktop app
+## Build the installer
 
-One command builds `dist\StreamClipper\StreamClipper.exe` and `dist\StreamClipper-windows-x64.zip`:
+One command builds `dist\StreamClipper-Setup-<version>.exe`:
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\build.ps1          # CPU Whisper, about 0.5 GB
-powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Cuda    # bundles NVIDIA cuBLAS/cuDNN for GPU Whisper, about 2.5 GB
+powershell -ExecutionPolicy Bypass -File scripts\build.ps1          # needs Inno Setup: winget install JRSoftware.InnoSetup
+powershell -ExecutionPolicy Bypass -File scripts\build.ps1 -Cuda    # also bundle NVIDIA cuBLAS/cuDNN for GPU Whisper (~2 GB more)
 ```
-The script creates `.venv` if needed, installs the `desktop` and `build` extras (pywebview, PyInstaller) and runs PyInstaller with [`packaging/streamclipper.spec`](packaging/streamclipper.spec).
-The exe is a native window (WebView2, built into Windows 10/11) around the same dashboard. ffmpeg and Ollama are not bundled.
+It downloads the pinned tools into `vendor\` ([`scripts/fetch_vendor.ps1`](scripts/fetch_vendor.ps1), SHA-256 checked), assembles the install folder in `build\app` and packs it with Inno Setup ([`packaging/installer.iss`](packaging/installer.iss)).
+
+The app runs on the **official, signed Python runtime** from python.org rather than a self-built exe. Windows Smart App Control blocks unsigned programs it hasn't seen before, and those programs can't load unsigned libraries either; with the signed Python as the host, the app's libraries load normally. Only the installer itself is unsigned (see [Known limits](#known-limits)).
+
+Bundled third-party tools: Python 3.11 embeddable (PSF license), ffmpeg ([GyanD build](https://github.com/GyanD/codexffmpeg), GPLv3, license in `vendor\ffmpeg\LICENSE`), llama.cpp (MIT) and deno (MIT). The AI model is [Qwen2.5-3B-Instruct GGUF](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF), downloaded from Hugging Face on first launch under its own license.
 
 ### Releases
-Push a version tag and GitHub Actions builds the exe and attaches the zip to a release:
+Push a version tag and GitHub Actions builds the installer and attaches it to a release:
 ```powershell
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.2.0
+git push origin v0.2.0
 ```
 CI runs the tests on every push to `main` and on pull requests.
 
@@ -175,7 +180,7 @@ streamclipper/      the app
   publish/          YouTube auth, metadata, scheduler, uploader, analytics
   web/              FastAPI + HTMX dashboard
   main.py           CLI: run | desktop | add | auth | process-file
-packaging/          PyInstaller spec, exe launcher, icon
+packaging/          Inno Setup script, icon
 scripts/            setup, build, service install, QA
 tests/              pytest suite
 ```
@@ -190,5 +195,6 @@ Only clip streams you own or have the creator's permission to clip; the permissi
 ## Known limits
 - GPU video encoding (NVENC) needs an NVIDIA driver new enough for your ffmpeg build. ffmpeg 9.x needs driver 610 or newer. With an older driver, rendering falls back to the CPU (libx264): it still works, just slower.
 - Best-moment compilations can only use footage still inside `capture.buffer_hours` (6 h by default). Raise it if you stream longer and want full-stream compilations.
+- The installer isn't code-signed yet. SmartScreen warns about it, and PCs with Smart App Control enforcing may block it. Signing it (for example through the free [SignPath Foundation](https://signpath.org) program for open-source projects) removes both.
 - Background-music detection (to avoid Content ID claims) is not implemented. Mute game or stream music yourself, or use `review_mode`.
 - Chat offsets are wall-clock based. HLS latency (~5-10 s) roughly cancels out viewer reaction delay.

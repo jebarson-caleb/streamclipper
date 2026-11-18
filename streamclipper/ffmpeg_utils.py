@@ -17,6 +17,12 @@ def _find(name: str) -> str:
     import glob
     import os
 
+    from .vendor import packaged, vendor_dir
+
+    bundled = vendor_dir("ffmpeg") / (name + (".exe" if os.name == "nt" else ""))
+    if packaged() and bundled.exists():   # the installed app ships its own ffmpeg
+        os.environ["PATH"] = str(bundled.parent) + os.pathsep + os.environ.get("PATH", "")
+        return str(bundled)
     hit = shutil.which(name)
     if hit:
         return hit

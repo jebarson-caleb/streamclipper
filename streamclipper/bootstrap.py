@@ -65,9 +65,9 @@ async def ensure_ollama() -> None:
             return
         STATUS["llm"] = f"downloading {cfg.model}…"
         log.info("pulling LLM %s (first run only)", cfg.model)
-        proc = await asyncio.create_subprocess_exec(exe, "pull", cfg.model, stdout=asyncio.subprocess.DEVNULL,
-                                                    stderr=asyncio.subprocess.DEVNULL)
-        await proc.wait()
+        flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+        await asyncio.to_thread(subprocess.run, [exe, "pull", cfg.model], stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, creationflags=flags)
     STATUS["llm"] = "ready"
 
 
@@ -75,8 +75,18 @@ async def run_checks() -> None:
     STATUS["ffmpeg"] = FFMPEG if Path(FFMPEG).exists() or shutil.which(FFMPEG) else "MISSING"
     if STATUS["ffmpeg"] == "MISSING":
         log.error("ffmpeg not found. Install it: winget install Gyan.FFmpeg")
-    await ensure_ollama()
-    await preload_whisper()
+    from .detect.llm import bundled
+
+    if bundled():   # packaged exe: download the AI model in the background, whisper loads meanwhile
+        from .detect import llama_server
+
+        dl = asyncio.create_task(llama_server.download_model())
+        await preload_whisper()
+        await dl
+        STATUS["llm"] = "ready" if llama_server.model_ready() else f"failed: {llama_server.DL['error']}"
+    else:
+        await ensure_ollama()
+        await preload_whisper()
 
 
 async def preload_whisper() -> None:
@@ -84,6 +94,7 @@ async def preload_whisper() -> None:
     from .gpu import gpu_lock
     from .transcribe import whisper
 
+    STATUS["whisper"] = "loading"
     try:
         async with gpu_lock():
             await asyncio.to_thread(whisper.warm_up)

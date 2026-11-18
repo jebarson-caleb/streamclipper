@@ -1,0 +1,40 @@
+<div id="setup-steps" {% if busy %}hx-get="/partials/setup" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
+  <section class="card frame-blue tilt-l" aria-labelledby="step1">
+    <div class="flex flex-wrap items-start gap-4">
+      <span class="display text-7xl" style="color:var(--blue)" aria-hidden="true">01</span>
+      <div class="flex-1 min-w-[16rem] space-y-4">
+        <h2 id="step1" class="display text-3xl">Getting the <span class="serif">AI ready</span></h2>
+        <p class="hint">Everything runs on this PC. The models download once on first launch; you can carry on with the next steps meanwhile.</p>
+        <ul class="space-y-4">
+          <li class="flex flex-wrap items-center gap-3">
+            <span class="pill {{ 'pill-blue' if st.ffmpeg else 'pill-live' }}">{{ 'Ready' if st.ffmpeg else 'Missing' }}</span>
+            <span class="font-semibold">Video engine</span><span class="hint text-sm">records streams and renders clips</span>
+            {% if not st.ffmpeg %}<p class="bad text-sm w-full" role="alert">ffmpeg was not found. {{ 'Reinstall StreamClipper.' if st.bundled else 'Install it: winget install Gyan.FFmpeg' }}</p>{% endif %}
+          </li>
+          <li class="space-y-2">
+            <div class="flex flex-wrap items-center gap-3">
+              <span class="pill {{ 'pill-blue' if st.ai == 'ready' else 'pill-live' if st.ai in ('failed','missing') else 'pill-pink' }}">{{ {'ready':'Ready','failed':'Failed','missing':'Missing','downloading':'Downloading'}.get(st.ai, 'Starting') }}</span>
+              <span class="font-semibold">AI model</span><span class="hint text-sm">judges moments and writes titles ({{ st.ai_gb }} GB)</span>
+            </div>
+            {% if st.ai == 'downloading' %}
+            <div class="w-full h-4 border-2" style="border-color:var(--ink)" role="progressbar" aria-label="AI model download" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ st.ai_pct }}">
+              <div class="h-full" style="width:{{ st.ai_pct }}%;background:var(--blue)"></div>
+            </div>
+            <p class="hint text-xs">{{ st.ai_pct }}% downloaded</p>
+            {% elif st.ai == 'failed' %}
+            <p class="bad text-sm" role="alert">Download failed: {{ st.ai_error }}</p>
+            <button class="btn btn-p" hx-post="/setup/retry" hx-target="#setup-steps" hx-swap="outerHTML">Try again <span class="arrow" aria-hidden="true">→</span></button>
+            {% elif st.ai == 'missing' %}
+            <p class="text-sm">Running from source: install <a class="underline" href="https://ollama.com/download" target="_blank" rel="noopener">Ollama<span class="sr-only"> (opens in a new tab)</span></a>, then restart.</p>
+            {% endif %}
+          </li>
+          <li class="flex flex-wrap items-center gap-3">
+            <span class="pill {{ 'pill-blue' if st.whisper == 'ready' else 'pill-live' if st.whisper.startswith('failed') else 'pill-pink' }}">{{ 'Ready' if st.whisper == 'ready' else 'Failed' if st.whisper.startswith('failed') else 'Preparing' }}</span>
+            <span class="font-semibold">Speech model</span><span class="hint text-sm">writes the subtitles (about 0.5 GB)</span>
+            {% if st.whisper.startswith('failed') %}<p class="bad text-sm w-full" role="alert">{{ st.whisper }}. Check your internet connection and restart StreamClipper.</p>{% endif %}
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</div>

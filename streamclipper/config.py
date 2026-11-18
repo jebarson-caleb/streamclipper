@@ -33,6 +33,10 @@ class Whisper(BaseModel):
 
 
 class LLM(BaseModel):
+    backend: str = "auto"   # auto: bundled llama.cpp in the packaged exe, Ollama from source | llamacpp | ollama
+    gguf_url: str = "https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q4_k_m.gguf"
+    gguf_sha256: str = "626b4a6678b86442240e33df819e00132d3ba7dddfe1cdc4fbb18e0a9615c62d"
+    server_port: int = 11435             # bundled llama-server (127.0.0.1 only)
     base_url: str = "http://127.0.0.1:11434"
     model: str = "qwen2.5:3b-instruct-q4_K_M"
     fallback_model: str = "llama3.2:3b"

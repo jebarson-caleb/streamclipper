@@ -13,3 +13,4 @@ dist/
 skills-lock.json
 .agents/
 brag-output/
+vendor/

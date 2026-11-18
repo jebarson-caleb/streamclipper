@@ -1,6 +1,6 @@
 [project]
 name = "streamclipper"
-version = "0.1.0"
+version = "0.2.0"
 description = "Local-AI live stream clipper that auto-subtitles clips and schedules them to YouTube"
 requires-python = ">=3.11"
 dependencies = [
@@ -17,6 +17,7 @@ dependencies = [
   "opencv-python-headless>=4.9,<5",  # 5.x dropped the Haar CascadeClassifier used for face tracking
   "faster-whisper>=1.0",
   "streamlink>=6.7",
+  "pycryptodome>=3.20,<4",                  # streamlink HLS; 4.x binaries are blocked by Windows Smart App Control
   "yt-dlp[default,curl-cffi]>=2025.10.1",   # curl-cffi: gets past Cloudflare on Kick/Rumble/etc.
   "deno>=2.0",                               # JS runtime yt-dlp needs for YouTube
   "certifi",
@@ -28,8 +29,6 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "pytest-asyncio>=0.23"]
-desktop = ["pywebview>=5.0"]                  # native window: `streamclipper desktop`
-build = ["pyinstaller>=6.6"]                  # scripts/build.ps1 -> dist/StreamClipper/StreamClipper.exe
 
 [project.scripts]
 streamclipper = "streamclipper.main:cli"

@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import func, select
 
+from .. import firstrun
 from ..config import get_settings
 from ..db import session
 from ..detect.engine import load_hype
@@ -71,7 +72,56 @@ def hype_svg(stream: Stream, width: int = 600, height: int = 70) -> str:
 # --------------------------------------------------------------------------- pages
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, msg: str = ""):
+    if not firstrun.is_complete():
+        return RedirectResponse("/welcome", 303)
     return templates.TemplateResponse(request, "home.html", {"page": "home", "msg": msg})
+
+
+# --------------------------------------------------------------------------- first-run guide
+def _setup_ctx() -> dict:
+    st = firstrun.status()
+    return {"st": st, "busy": firstrun.busy(st)}
+
+
+@app.get("/welcome", response_class=HTMLResponse)
+async def welcome(request: Request, msg: str = ""):
+    return templates.TemplateResponse(request, "welcome.html", {"page": "welcome", "msg": msg, **_setup_ctx()})
+
+
+@app.get("/partials/setup", response_class=HTMLResponse)
+async def setup_partial(request: Request):
+    return templates.TemplateResponse(request, "_setup_steps.html", _setup_ctx())
+
+
+@app.post("/setup/retry", response_class=HTMLResponse)
+async def setup_retry(request: Request):
+    firstrun.retry_ai()
+    await asyncio.sleep(0.3)
+    return templates.TemplateResponse(request, "_setup_steps.html", _setup_ctx())
+
+
+@app.post("/setup/client-secret")
+async def setup_client_secret(request: Request):
+    import json
+    from urllib.parse import quote
+
+    form = await request.form()
+    up = form.get("file")
+    data = await up.read() if up is not None and hasattr(up, "read") else b""
+    try:
+        info = json.loads(data.decode("utf-8"))
+        if "installed" not in info:
+            raise ValueError("this is not a Desktop app OAuth client file")
+    except (ValueError, UnicodeDecodeError) as e:
+        return RedirectResponse(f"/welcome?msg={quote('Could not use that file: ' + str(e))}#youtube", 303)
+    Path(get_settings().publish.client_secret).write_bytes(data)
+    return RedirectResponse(f"/welcome?msg={quote('Google client file saved. Now click Connect.')}#youtube", 303)
+
+
+@app.post("/welcome/done")
+async def welcome_done():
+    firstrun.mark_complete()
+    return RedirectResponse("/", 303)
 
 
 @app.get("/partials/status", response_class=HTMLResponse)
@@ -265,13 +315,14 @@ async def settings_page(request: Request, msg: str = ""):
 
 
 @app.post("/youtube/connect")
-async def youtube_connect(account: str = Form("default")):
+async def youtube_connect(account: str = Form("default"), back: str = Form("/settings")):
     try:
         await asyncio.to_thread(authorize, account.strip() or "default")
         msg = f"Connected account '{account}'"
     except Exception as e:
         msg = f"Connect failed: {e}"
-    return RedirectResponse(f"/settings?msg={msg}", 303)
+    back = back if back in ("/settings", "/welcome") else "/settings"
+    return RedirectResponse(f"{back}?msg={msg}" + ("#youtube" if back == "/welcome" else ""), 303)
 
 
 @app.post("/settings/review")

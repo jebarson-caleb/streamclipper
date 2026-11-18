@@ -59,6 +59,9 @@ class Supervisor:
         for t in self.tasks:
             t.cancel()
         await asyncio.gather(*[t for _, t, _, _ in self.active.values()], return_exceptions=True)
+        from .detect import llama_server
+
+        llama_server.stop()
 
     async def _guard(self, fn) -> None:
         """Restart a loop if it crashes, so one bug never stops the whole tool."""

@@ -49,8 +49,26 @@ async def _call(client: httpx.AsyncClient, model: str, system: str, user: str, c
     return r.json()["message"]["content"]
 
 
+def bundled() -> bool:
+    """True when the bundled llama.cpp engine is the backend (see llm.backend): auto = installed app."""
+    from ..vendor import packaged
+    from . import llama_server
+
+    b = get_settings().llm.backend
+    return b == "llamacpp" or (b == "auto" and packaged() and llama_server.available())
+
+
 async def chat_json(system: str, user: str) -> dict:
     cfg = get_settings().llm
+    if bundled():
+        from . import llama_server
+
+        async with gpu_lock():
+            async with httpx.AsyncClient(timeout=cfg.timeout_seconds) as client:
+                try:
+                    return parse_json(await llama_server.chat(client, system, user))
+                except (LLMError, httpx.HTTPError, KeyError, RuntimeError) as e:
+                    raise LLMError(str(e)) from e
     async with gpu_lock():
         async with httpx.AsyncClient(timeout=cfg.timeout_seconds) as client:
             last: Exception | None = None
@@ -70,6 +88,10 @@ async def chat_json(system: str, user: str) -> dict:
 
 
 async def is_up() -> bool:
+    if bundled():   # the bundled engine starts on demand; it's usable once the model is downloaded
+        from . import llama_server
+
+        return llama_server.model_ready()
     try:
         async with httpx.AsyncClient(timeout=3) as c:
             r = await c.get(f"{get_settings().llm.base_url}/api/tags")

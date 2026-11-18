@@ -47,6 +47,7 @@ def _run_dashboard(open_browser: bool = False) -> None:
 
 def _run_desktop() -> None:
     """Open the dashboard in its own window. Starts the pipeline too, unless it is already running."""
+    import subprocess
     import threading
     import time
     import webbrowser
@@ -68,34 +69,82 @@ def _run_desktop() -> None:
             if server.started:
                 break
             time.sleep(0.25)
-    try:
-        import webview
-    except ImportError:
-        log.warning("pywebview is not installed; opening the dashboard in the browser instead")
+    browser = _app_browser()
+    if not browser:
+        log.warning("Edge/Chrome not found; opening the dashboard in the default browser")
         webbrowser.open(url)
         if server:
             threading.Event().wait()   # keep the pipeline running until the process is killed
         return
-    webview.create_window("StreamClipper", url, width=1280, height=860, min_size=(900, 600),
-                          background_color="#f4f4f4")
-    webview.start()
-    if server:   # window closed: shut the pipeline down cleanly
-        server.should_exit = True
-        time.sleep(3)
+    # An app-style window (no tabs or address bar) with its own profile, so we can tell when it's closed.
+    profile = s.data_dir / "window"
+    subprocess.Popen([browser, f"--app={url}", f"--user-data-dir={profile}", "--window-size=1280,860",
+                      "--no-first-run", "--no-default-browser-check"]).wait()
+    if not server:
+        return
+    time.sleep(1)
+    while _profile_in_use(profile):   # the window may live in a process that was already running
+        time.sleep(2)
+    server.should_exit = True          # window closed: shut the pipeline down cleanly
+    time.sleep(3)
 
 
-def _frozen_setup() -> None:
-    """Packaged .exe: keep config.yaml and data/ next to the exe, create config.yaml on first run."""
+def _app_browser() -> str | None:
+    """Edge, Chrome or Brave: they can open a page as an app window."""
     import os
     import shutil
-    from pathlib import Path
 
-    exe_dir = Path(sys.executable).parent
-    os.chdir(exe_dir)
-    cfg = exe_dir / "config.yaml"
-    example = Path(getattr(sys, "_MEIPASS", exe_dir)) / "config.example.yaml"
+    names = ["msedge.exe", "chrome.exe", "brave.exe"]
+    if sys.platform == "win32":
+        import winreg
+
+        for n in names:
+            for hive in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+                try:
+                    with winreg.OpenKey(hive, rf"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\{n}") as k:
+                        p = winreg.QueryValue(k, None)
+                except OSError:
+                    continue
+                if p and os.path.exists(p):
+                    return p
+        for p in (r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe",
+                  r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe",
+                  r"%ProgramFiles%\Google\Chrome\Application\chrome.exe",
+                  r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"):
+            p = os.path.expandvars(p)
+            if os.path.exists(p):
+                return p
+    for n in ("microsoft-edge", "google-chrome", "chromium", "chromium-browser"):
+        if shutil.which(n):
+            return shutil.which(n)
+    return None
+
+
+def _profile_in_use(profile) -> bool:
+    """Chromium keeps <profile>/lockfile open while the window is running."""
+    lock = profile / "lockfile"
+    try:
+        lock.unlink()
+    except FileNotFoundError:
+        return False
+    except PermissionError:
+        return True
+    return False
+
+
+def _packaged_setup() -> None:
+    """Installed app: config.yaml and data/ live in the app folder; deno (for yt-dlp) goes on PATH."""
+    import os
+    import shutil
+
+    from .vendor import app_root
+
+    root = app_root()
+    os.chdir(root)
+    cfg, example = root / "config.yaml", root / "config.example.yaml"
     if not cfg.exists() and example.exists():
         shutil.copy(example, cfg)
+    os.environ["PATH"] = os.pathsep.join([str(root / "vendor" / "deno"), os.environ.get("PATH", "")])
 
 
 async def _process_file(path: str, name: str, mode: str, outputs: str, upload: bool,
@@ -176,9 +225,11 @@ def cli(argv: list[str] | None = None) -> None:
     args = p.parse_args(argv)
     import os
 
-    frozen = getattr(sys, "frozen", False)
-    if frozen:
-        _frozen_setup()
+    from .vendor import packaged
+
+    installed = packaged()
+    if installed:
+        _packaged_setup()
 
     if sys.stdout is None:   # pythonw (no console): give libraries somewhere harmless to write
         sys.stdout = open(os.devnull, "w")
@@ -192,7 +243,7 @@ def cli(argv: list[str] | None = None) -> None:
 
     s = load_settings(args.config)
     setup_logging(s.log_path)
-    cmd = args.cmd or ("desktop" if frozen else "run")
+    cmd = args.cmd or ("desktop" if installed else "run")
     if cmd == "run":
         _run_dashboard(getattr(args, "open", False))
     elif cmd == "desktop":
