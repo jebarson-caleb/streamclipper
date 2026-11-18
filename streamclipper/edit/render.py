@@ -10,7 +10,7 @@ from sqlmodel import select
 
 from ..config import get_settings
 from ..db import session
-from ..ffmpeg_utils import AUDIO_ARGS, ass_path_escape, encode_args, has_audio, run, video_size
+from ..ffmpeg_utils import AUDIO_ARGS, ass_filter, ass_path_escape, encode_args, has_audio, run, video_size
 from ..models import Segment, Word as WordRow
 from . import subtitles as subs
 from .shots import choose_edges, detect_cuts, static_tail
@@ -196,14 +196,15 @@ async def render_span(stream_id: int, a: float, b: float, out: Path, *, vertical
         vf = horizontal_filter()
 
     # ---- subtitles + overlays
+    from . import caption_style
+
     ass = work.with_suffix(".ass")
     ass.write_text(subs.build_ass(
-        words, dur, vertical, font=r.font,
-        font_size=r.font_size_short if vertical else r.font_size_long, highlight=r.highlight_color,
-        hook=hook if (vertical and r.hook_card) else "", credit=credit,
+        words, dur, vertical, hook=hook if (vertical and r.hook_card) else "", credit=credit,
         profanity=r.profanity if r.mute_profanity else None, keywords=s.detect.keywords,
+        style=caption_style.load(),
     ), encoding="utf-8")
-    graph = vf + f";[vbase]ass='{ass_path_escape(str(ass))}'[vsub]"
+    graph = vf + f";[vbase]{ass_filter(ass)}[vsub]"
     last = "vsub"
     if r.progress_bar and vertical:
         graph += (f";color=c=0xFFD000:s=1080x14:r=30[bar];"

@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block body %}
+<style>
+  {% for name, file in font_files.items() %}
+  @font-face { font-family: "{{ name }}"; src: url("/fonts/{{ file }}") format("truetype"); font-display: swap; }
+  {% endfor %}
+  .phone { position: relative; width: 100%; max-width: 300px; aspect-ratio: 9 / 16; margin: 0 auto; overflow: hidden;
+           background: linear-gradient(160deg, #3a2a52 0%, #1d1530 38%, #0b2a7a 38%, #06123a 100%); border: 6px solid var(--ink); }
+  .phone::after { content: ""; position: absolute; inset: 38% 0 0 0; background-image: linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px); background-size: 22px 22px; }
+  .cap { position: absolute; left: 6%; right: 6%; z-index: 2; text-align: center; line-height: 1.05; transform-origin: center; }
+  .cap .w { display: inline-block; margin: 0 .12em; paint-order: stroke fill; }
+  .cap.box .w { padding: .06em .18em; }
+  .preset-card input:checked + span { outline: 4px solid var(--ink); outline-offset: 4px; }
+</style>
+
+<section class="pt-8 text-center">
+  <p class="eyebrow">How the words look on every clip</p>
+  <h1 class="display reveal section-title"><span class="ln"><span>Caption <span class="serif">style</span></span></span></h1>
+</section>
+{% if msg %}<p class="card-flat border-l-8 font-semibold" style="border-color:var(--blue)" role="status">{{ msg }}</p>{% endif %}
+
+<form id="capform" method="post" action="/captions/save" class="grid lg:grid-cols-[1fr_320px] gap-8 items-start">
+  <div class="space-y-6">
+    <fieldset class="card fade-up">
+      <legend class="label px-1">Start from a preset</legend>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
+        {% for key, label in labels.items() %}
+        <label class="preset-card cursor-pointer mb-0">
+          <input type="radio" name="preset" value="{{ key }}" class="sr-only" {{ 'checked' if st.preset == key }}>
+          <span class="block card-flat border-2 text-center py-4 {{ loop.cycle('tilt-l', '', 'tilt-r') }} lift"
+                style="border-color:var(--ink);font-family:'{{ presets[key].font }}',sans-serif;font-size:1.3rem;{{ 'text-transform:uppercase;' if presets[key].uppercase }}color:{{ presets[key].highlight_color }};-webkit-text-stroke:1px {{ presets[key].outline_color }};background:{{ presets[key].outline_color if presets[key].box else ('#101010' if presets[key].glow else '#fff') }}">{{ label }}</span>
+        </label>
+        {% endfor %}
+        <label class="preset-card cursor-pointer mb-0">
+          <input type="radio" name="preset" value="custom" class="sr-only" {{ 'checked' if st.preset == 'custom' }}>
+          <span class="block card-flat border-2 text-center py-4 lift" style="border-color:var(--ink);font-size:1.1rem">Custom</span>
+        </label>
+      </div>
+    </fieldset>
+
+    <section class="card fade-up space-y-5" aria-labelledby="look-title">
+      <h2 id="look-title" class="display text-3xl">Fine-<span class="serif">tune</span></h2>
+      <div class="grid md:grid-cols-3 gap-4">
+        <div><label for="font">Font</label><select id="font" name="font">
+          {% for f in fonts %}<option {{ 'selected' if st.font == f }} style="font-family:'{{ f }}'">{{ f }}</option>{% endfor %}</select></div>
+        <div><label for="size">Size <span class="font-normal normal-case" id="size-out">{{ st.size }}</span></label>
+          <input id="size" name="size" type="range" min="36" max="140" value="{{ st.size }}" class="p-0 border-0 focus:shadow-none"></div>
+        <div><label for="angle">Tilt <span class="font-normal normal-case" id="angle-out">{{ st.angle }}°</span></label>
+          <input id="angle" name="angle" type="range" min="-15" max="15" value="{{ st.angle }}" class="p-0 border-0 focus:shadow-none"></div>
+        <div><label for="text_color">Text color</label><input id="text_color" name="text_color" type="color" value="{{ st.text_color }}" class="h-11 p-1"></div>
+        <div><label for="highlight_color">Spoken word color</label><input id="highlight_color" name="highlight_color" type="color" value="{{ st.highlight_color }}" class="h-11 p-1"></div>
+        <div><label for="outline_color">Outline / box color</label><input id="outline_color" name="outline_color" type="color" value="{{ st.outline_color }}" class="h-11 p-1"></div>
+        <div><label for="outline">Outline width <span class="font-normal normal-case" id="outline-out">{{ st.outline }}</span></label>
+          <input id="outline" name="outline" type="range" min="0" max="24" value="{{ st.outline }}" class="p-0 border-0 focus:shadow-none"></div>
+        <div><label for="position">Position</label><select id="position" name="position">
+          {% for p in positions %}<option value="{{ p }}" {{ 'selected' if st.position == p }}>{{ {'low':'Lower third','middle':'Middle','top':'Top'}[p] }}</option>{% endfor %}</select></div>
+        <div><label for="words_per_line">Words at a time</label><input id="words_per_line" name="words_per_line" type="number" min="1" max="6" value="{{ st.words_per_line }}"></div>
+      </div>
+      <fieldset class="flex flex-wrap gap-x-6 gap-y-3">
+        <legend class="sr-only">Effects</legend>
+        {% for key, label in [('uppercase','UPPERCASE'),('box','Solid box'),('pop','Pop the spoken word'),('glow','Glow')] %}
+        <div class="flex items-center gap-2"><input type="hidden" name="{{ key }}" value="0">
+          <input id="{{ key }}" type="checkbox" name="{{ key }}" value="1" class="w-5 h-5" {{ 'checked' if st[key] }}>
+          <label for="{{ key }}" class="mb-0">{{ label }}</label></div>
+        {% endfor %}
+      </fieldset>
+      <div class="flex flex-wrap gap-3">
+        <button class="btn btn-p">Save caption style <span class="arrow" aria-hidden="true">→</span></button>
+        <button type="button" class="btn" hx-post="/captions/preview" hx-include="#capform" hx-target="#real" hx-indicator="#real-busy">Render a real frame</button>
+        <span id="real-busy" class="htmx-indicator hint self-center">Rendering…</span>
+      </div>
+    </section>
+  </div>
+
+  <aside class="lg:sticky lg:top-24 space-y-3" aria-label="Preview">
+    <p class="label text-center">Live preview</p>
+    <div class="phone" aria-hidden="true"><div id="cap" class="cap"></div></div>
+    <div id="real" aria-live="polite" class="max-w-[300px] mx-auto"></div>
+    <p class="hint text-xs text-center">The live preview is approximate; "Render a real frame" draws it exactly as clips will.</p>
+  </aside>
+</form>
+
+<script>
+(() => {
+  const presets = {{ presets|tojson }};
+  const form = document.getElementById("capform"), cap = document.getElementById("cap");
+  const words = ["no", "way", "that"];
+  let active = 1;
+  const val = id => form.elements[id];
+  const checked = id => form.querySelector(`input[type=checkbox][name=${id}]`).checked;
+  function paint() {
+    const size = +val("size").value, outline = +val("outline").value, box = checked("box"), upper = checked("uppercase");
+    document.getElementById("size-out").textContent = size;
+    document.getElementById("angle-out").textContent = val("angle").value + "°";
+    document.getElementById("outline-out").textContent = outline;
+    const scale = cap.parentElement.clientWidth / 1080;
+    cap.className = "cap" + (box ? " box" : "");
+    cap.style.fontFamily = `"${val("font").value}", "Arial Black", sans-serif`;
+    cap.style.fontSize = (size * scale) + "px";
+    cap.style.transform = `rotate(${-val("angle").value}deg)`;
+    const pos = val("position").value;
+    cap.style.top = pos === "top" ? "22%" : pos === "middle" ? "46%" : "auto";
+    cap.style.bottom = pos === "low" ? "29%" : "auto";
+    cap.innerHTML = "";
+    words.forEach((w, i) => {
+      const s = document.createElement("span");
+      s.className = "w";
+      s.textContent = upper ? w.toUpperCase() : w;
+      const color = i === active ? val("highlight_color").value : val("text_color").value;
+      s.style.color = color;
+      if (box) { s.style.background = val("outline_color").value; }
+      else { s.style.webkitTextStroke = `${Math.max(0, outline * scale * 2)}px ${val("outline_color").value}`; }
+      if (checked("glow")) s.style.textShadow = `0 0 ${8 * scale * 10}px ${val("outline_color").value}`;
+      if (i === active && checked("pop") && !matchMedia("(prefers-reduced-motion: reduce)").matches) s.style.transform = "scale(1.12)";
+      cap.appendChild(s);
+    });
+  }
+  form.addEventListener("input", e => {
+    if (e.target.name === "preset") {
+      const p = presets[e.target.value];
+      if (p) for (const [k, v] of Object.entries(p)) {
+        const el = form.querySelector(`[name=${k}]:not([type=hidden]):not([type=radio])`);
+        if (!el) continue;
+        if (el.type === "checkbox") el.checked = !!v; else el.value = v;
+      }
+    } else if (e.target.closest(".card") && e.target.name !== "preset") {
+      form.querySelector("input[name=preset][value=custom]").checked = true;
+    }
+    paint();
+  });
+  addEventListener("resize", paint);
+  if (!matchMedia("(prefers-reduced-motion: reduce)").matches) setInterval(() => { active = (active + 1) % words.length; paint(); }, 650);
+  document.fonts && document.fonts.ready.then(paint);
+  paint();
+})();
+</script>
+{% endblock %}

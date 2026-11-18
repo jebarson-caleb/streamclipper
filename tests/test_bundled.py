@@ -51,6 +51,69 @@ def test_model_not_ready_until_verified(tmp_path):
     assert llama_server.model_ready()
 
 
+def test_model_download_survives_a_stalled_server(tmp_path, monkeypatch):
+    """The server sends part of the file, then goes silent without closing: drop it, resume with Range."""
+    import asyncio
+    import hashlib
+
+    import httpx
+
+    data = bytes(range(256)) * 40
+    calls = []
+
+    async def handler(request):
+        rng = request.headers.get("range")
+        calls.append(rng)
+        start = int(rng.split("=")[1].rstrip("-")) if rng else 0
+
+        async def body():
+            yield data[start:start + 3000]
+            if start == 0:
+                await asyncio.sleep(30)          # stall: never finish, never close
+            else:
+                yield data[start + 3000:]
+        return httpx.Response(206 if rng else 200, headers={"content-length": str(len(data) - start)}, content=body())
+
+    real_client = httpx.AsyncClient
+    monkeypatch.setattr(llama_server.httpx, "AsyncClient",
+                        lambda **kw: real_client(transport=httpx.MockTransport(handler), **kw))
+    monkeypatch.setattr(llama_server, "STALL_SECONDS", 0.3)
+    monkeypatch.setattr(llama_server, "RETRY_DELAY", 0)
+    _settings(tmp_path, gguf_url="https://example.test/model.gguf", gguf_sha256=hashlib.sha256(data).hexdigest())
+    llama_server.DL.update(state="idle", done=0, total=0, error="")
+
+    asyncio.run(llama_server.download_model())
+
+    assert llama_server.DL["state"] == "ready", llama_server.DL
+    assert llama_server.model_path().read_bytes() == data
+    assert calls == [None, "bytes=3000-"]
+
+
+def test_previous_model_is_removed_once_current_is_ready(tmp_path):
+    import asyncio
+
+    _settings(tmp_path)
+    cur = llama_server.model_path()
+    cur.parent.mkdir(parents=True)
+    old = cur.parent / "qwen2.5-3b-instruct-q4_k_m.gguf"
+    for f in (cur, old):
+        f.write_bytes(b"x")
+        f.with_suffix(".ok").write_text("hash")
+    user_file = cur.parent / "my-own-model.gguf"     # no .ok marker: not ours, never touched
+    user_file.write_bytes(b"x")
+    llama_server.DL.update(state="idle")
+    asyncio.run(llama_server.download_model())
+    assert cur.exists() and not old.exists() and not old.with_suffix(".ok").exists() and user_file.exists()
+
+
+def test_gpu_layers_follow_free_video_memory(tmp_path):
+    _settings(tmp_path)          # no model file yet: assumes a ~2.4 GB model with 36 layers
+    assert llama_server.gpu_layers(None) == -1       # not NVIDIA: let llama.cpp fit it
+    assert llama_server.gpu_layers(900) == 0         # a game/OBS holds the GPU: CPU, don't crash
+    assert llama_server.gpu_layers(8000) == 36       # plenty: everything on the GPU
+    assert 0 < llama_server.gpu_layers(2400) < 36    # in between: partial offload
+
+
 def test_gpu_device_prefers_dedicated(tmp_path, monkeypatch):
     _settings(tmp_path)
     out = ("Available devices:\n  Vulkan0: Intel(R) Iris(R) Xe Graphics (12130 MiB, 11362 MiB free)\n"

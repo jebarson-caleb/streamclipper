@@ -52,4 +52,4 @@ Filename: "{cmd}"; Parameters: "/C taskkill /IM llama-server.exe /F"; Flags: run
 Type: filesandordirs; Name: "{app}\runtime"
 
 [Messages]
-FinishedLabel=StreamClipper is installed. On first launch it downloads its AI models (about 2.5 GB, once) and shows a short setup guide.
+FinishedLabel=StreamClipper is installed. On first launch it downloads its AI models (about 3 GB, once) and shows a short setup guide.

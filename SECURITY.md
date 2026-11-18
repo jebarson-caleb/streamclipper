@@ -17,6 +17,10 @@ Only the latest release is supported with fixes.
 - The bundled AI engine listens on `127.0.0.1` with a random key per launch.
 - Notification tokens and webhook URLs are never shown on the Settings page or written to the log.
 - Links are stripped from AI-written titles and descriptions, since the AI reads viewers' chat and speech.
+- Caption styles are validated against fixed lists and ranges before they reach the subtitle file, and the font
+  route only serves the bundled font files by exact name.
+- Streamer mode blurs links, file paths, account names and logs on screen, so they don't leak if the dashboard is
+  captured on stream.
 - Installer builds pin and SHA-256-check every bundled tool, and the build fails if Windows Application Control
   would block any bundled file.
 

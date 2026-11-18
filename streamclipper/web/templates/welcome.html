@@ -20,7 +20,7 @@
         {% if st.accounts %}<span class="pill pill-blue align-middle">Connected</span>{% endif %}</h2>
       <p class="hint">Connect a channel so finished clips upload and publish on schedule. Skip this and clips still render; they wait in Clips &amp; queue.</p>
       {% if st.accounts %}
-        <p class="text-sm ok font-semibold">Connected: {{ st.accounts|join(", ") }}</p>
+        <p class="text-sm ok font-semibold">Connected: <span class="pii">{{ st.accounts|join(", ") }}</span></p>
       {% elif not st.secret %}
         <ol class="list-decimal pl-5 text-sm space-y-1">
           <li>Open the <a class="underline" href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank" rel="noopener">Google Cloud console<span class="sr-only"> (opens in a new tab)</span></a>, create a project and enable <b>YouTube Data API v3</b>.</li>
@@ -35,7 +35,7 @@
       {% else %}
         <form method="post" action="/youtube/connect" class="flex flex-wrap gap-3 items-end">
           <input type="hidden" name="back" value="/welcome">
-          <div class="flex-1 min-w-[12rem]"><label for="acc">Account nickname</label><input id="acc" name="account" value="default"></div>
+          <div class="flex-1 min-w-[12rem]"><label for="acc">Account nickname</label><input id="acc" name="account" class="pii" value="default"></div>
           <button class="btn btn-p">Connect YouTube <span class="arrow" aria-hidden="true">→</span><span class="sr-only"> (opens your browser)</span></button>
         </form>
         <p class="hint text-xs">Google keeps uploads private until your API project is audited; StreamClipper schedules them for you.</p>
@@ -51,7 +51,7 @@
       <h2 id="step4" class="display text-3xl">Your first <span class="serif">stream</span></h2>
       <p class="hint">Paste a live link (Twitch, YouTube, Kick, TikTok and more) or a video file path. Only clip streams you own or have permission to clip.</p>
       <form method="post" action="/quick" class="grid md:grid-cols-6 gap-4 items-end">
-        <div class="md:col-span-4"><label for="w-url">Live link or file path</label><input id="w-url" name="url" required placeholder="https://www.twitch.tv/yourname"></div>
+        <div class="md:col-span-4"><label for="w-url">Live link or file path</label><input id="w-url" name="url" class="pii" required placeholder="https://www.twitch.tv/yourname"></div>
         <div class="md:col-span-2"><label for="w-perm">Whose stream?</label>
           <select id="w-perm" name="permission" required><option value="" selected disabled>Choose…</option><option value="own">My own stream</option><option value="allowed">Creator allowed me</option></select></div>
         <input type="hidden" name="mode" value="best_moments"><input type="hidden" name="outputs" value="shorts"><input type="hidden" name="watch" value="on">

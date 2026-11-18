@@ -37,6 +37,12 @@ class Channel(SQLModel, table=True):
     created_at: NaiveDatetime = Field(default_factory=utcnow)
 
 
+class CaptionSetting(SQLModel, table=True):
+    """The caption look (edit/caption_style.py), stored as validated JSON in a single row (id=1)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    data: str = "{}"
+
+
 class Stream(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     channel_id: int = Field(index=True, foreign_key="channel.id")

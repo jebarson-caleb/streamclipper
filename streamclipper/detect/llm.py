@@ -40,7 +40,7 @@ async def _call(client: httpx.AsyncClient, model: str, system: str, user: str, c
         opts["num_gpu"] = 0
     r = await client.post(
         f"{cfg.base_url}/api/chat",
-        json={"model": model, "stream": False, "format": "json", "keep_alive": cfg.keep_alive,
+        json={"model": model, "stream": False, "format": "json", "keep_alive": cfg.keep_alive, "think": False,
               "options": opts,
               "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]},
     )

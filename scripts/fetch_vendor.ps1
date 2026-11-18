@@ -17,6 +17,33 @@ $items = @(
        Sha = "60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba" }
 )
 New-Item -ItemType Directory -Force vendor\downloads | Out-Null
+
+# Caption fonts (OFL / Apache-2.0) from Google's fonts repository at a fixed commit, plus their licenses.
+$fontsBase = "https://raw.githubusercontent.com/google/fonts/5bd87dfc525c8a0d1d8529d3684716e00c3fc59a"
+$fonts = @(
+    @("ofl/archivoblack/ArchivoBlack-Regular.ttf", "dd9a89a019b4849f66ab75455fe7bdf931311042cbb0f0f97acc061539703180"),
+    @("ofl/anton/Anton-Regular.ttf", "a4ba3a92350ebb031da0cb47630ac49eb265082ca1bc0450442f4a83ab947cab"),
+    @("ofl/bebasneue/BebasNeue-Regular.ttf", "08e4623805102d819f58601e46e345648846075e363b2ceb23313c2d1c83ec73"),
+    @("ofl/bangers/Bangers-Regular.ttf", "4160a7311de9342674cce9160cde9fcbb30f48190397d86ff1b70b455af65824"),
+    @("apache/luckiestguy/LuckiestGuy-Regular.ttf", "cfbdd68a039f92df51cf3721506af6242e64594c6325fe0bedbeff3fe385d980"),
+    @("apache/permanentmarker/PermanentMarker-Regular.ttf", "28f82c8a7943cb8e9d599f8554da1d4fc75dbcf69b9885ad6c0611d20c6946c5"),
+    @("ofl/instrumentserif/InstrumentSerif-Regular.ttf", "498efd461f6ddfcb7a111bf9a565709d2085d48201d501ead960d93e84ffbb88"),
+    @("ofl/instrumentserif/InstrumentSerif-Italic.ttf", "08939b8bdf534afec24ae0ef5e03f948940cd9a8fe08e7fecbad040e62327385")
+)
+New-Item -ItemType Directory -Force vendor\fonts | Out-Null
+foreach ($f in $fonts) {
+    $dest = Join-Path "vendor\fonts" ([IO.Path]::GetFileName($f[0]))
+    if (-not (Test-Path $dest) -or (Get-FileHash $dest -Algorithm SHA256).Hash.ToLower() -ne $f[1]) {
+        Invoke-WebRequest -Uri "$fontsBase/$($f[0])" -OutFile $dest -UseBasicParsing
+        if ((Get-FileHash $dest -Algorithm SHA256).Hash.ToLower() -ne $f[1]) { Remove-Item $dest; throw "font SHA-256 mismatch: $($f[0])" }
+    }
+    # plain string ops: Split-Path would turn "apache/x" into "apache\x" (wrong URL, wrong license type)
+    $dir = $f[0].Substring(0, $f[0].LastIndexOf("/")); $licName = if ($dir.StartsWith("apache/")) { "LICENSE.txt" } else { "OFL.txt" }
+    $lic = Join-Path "vendor\fonts" ($dir.Substring($dir.LastIndexOf("/") + 1) + "-" + $licName)
+    if (-not (Test-Path $lic)) { Invoke-WebRequest -Uri "$fontsBase/$dir/$licName" -OutFile $lic -UseBasicParsing }
+}
+Write-Host "fonts: ok"
+
 foreach ($it in $items) {
     $dest = Join-Path "vendor" $it.Name
     if (Test-Path (Join-Path $dest ".ok")) { Write-Host "$($it.Name): already there"; continue }

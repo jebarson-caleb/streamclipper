@@ -35,7 +35,7 @@ if (-not (Test-Path ".venv")) {
 if (-not (Test-Path "config.yaml")) { Copy-Item config.example.yaml config.yaml }
 
 Write-Host "Pulling local LLM (about 2 GB)..."
-ollama pull qwen2.5:3b-instruct-q4_K_M
+ollama pull qwen3:4b
 
 & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "create_shortcut.ps1")
 

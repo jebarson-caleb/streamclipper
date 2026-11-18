@@ -25,8 +25,8 @@ whisper:
 
 llm:
   base_url: http://127.0.0.1:11434
-  model: qwen2.5:3b-instruct-q4_K_M
-  fallback_model: llama3.2:3b
+  model: qwen3:4b              # Ollama model (source installs). Apache-2.0: commercial use allowed
+  fallback_model: qwen2.5:1.5b  # Apache-2.0
   keep_alive: 30s                # short, so VRAM is released for Whisper
   timeout_seconds: 180
 

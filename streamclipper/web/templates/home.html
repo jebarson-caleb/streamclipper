@@ -8,7 +8,7 @@
   </h1>
 </section>
 
-{% if msg %}<div class="card-flat border-l-8 fade-up" style="border-color:var(--blue)" role="status">{{ msg }}</div>{% endif %}
+{% if msg %}<div class="card-flat border-l-8 fade-up" style="border-color:var(--blue)" role="status"><span class="pii">{{ msg }}</span></div>{% endif %}
 
 <section class="card frame-blue tilt-l lift fade-up" aria-labelledby="paste-title">
   <div class="flex flex-wrap items-end justify-between gap-2 mb-4">
@@ -17,7 +17,7 @@
   </div>
   <form method="post" action="/quick" class="grid md:grid-cols-6 xl:grid-cols-7 gap-4 items-end">
     <div class="md:col-span-4 xl:col-span-5"><label for="q-url">Live link or file path</label>
-      <input id="q-url" name="url" required autofocus autocomplete="url" placeholder="https://www.twitch.tv/yourname"></div>
+      <input id="q-url" name="url" class="pii" required autocomplete="url" placeholder="https://www.twitch.tv/yourname"></div>
     <div class="md:col-span-2"><label for="q-name">Name <span class="font-normal normal-case">(optional)</span></label>
       <input id="q-name" name="name" placeholder="auto from link"></div>
     <div class="md:col-span-2"><label for="q-perm">Whose stream? <span aria-hidden="true">*</span></label>

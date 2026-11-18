@@ -9,7 +9,7 @@
       {% else %}<span class="hint">Not available</span>{% endif %}</li>
     <li class="card-flat"><span class="label">Disk free</span><span class="display text-3xl {{ 'bad' if disk < 20 else '' }}">{{ '%.0f' % disk }} GB</span></li>
     <li class="card-flat"><span class="label">YouTube quota</span>
-      {% for a, q in quota.items() %}<span class="block text-sm font-semibold">{{ a }}: {{ q }}/{{ daily_quota }}</span>
+      {% for a, q in quota.items() %}<span class="block text-sm font-semibold"><span class="pii">{{ a }}</span>: {{ q }}/{{ daily_quota }}</span>
       {% else %}<span class="warn text-sm font-semibold">No account connected</span>{% endfor %}</li>
   </ul>
 

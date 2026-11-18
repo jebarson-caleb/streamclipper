@@ -72,14 +72,31 @@ def chunk_words(words: list[Word], max_words: int, max_dur: float = 2.6, gap: fl
     return merged
 
 
+def _legacy_style(font: str, font_size: int, highlight: str):
+    """Old keyword arguments -> a CaptionStyle (highlight given as ASS &HBBGGRR)."""
+    from .caption_style import CaptionStyle
+
+    bgr = highlight.upper().replace("&H", "").replace("&", "")[-6:].rjust(6, "0")
+    return CaptionStyle(font=font, size=font_size, highlight_color=f"#{bgr[4:6]}{bgr[2:4]}{bgr[0:2]}")
+
+
 def build_ass(words: list[Word], duration: float, vertical: bool, *, font: str = "Arial Black",
               font_size: int = 78, highlight: str = "&H0000F0FF", hook: str = "", credit: str = "",
-              profanity: list[str] | None = None, keywords: list[str] | None = None) -> str:
+              profanity: list[str] | None = None, keywords: list[str] | None = None, style=None) -> str:
+    """style: a validated caption_style.CaptionStyle; without it the font/font_size/highlight arguments apply."""
+    from .caption_style import FONTS, ass_color
+
+    st = style or _legacy_style(font, font_size, highlight)
     w, h = (1080, 1920) if vertical else (1920, 1080)
-    outline = 6 if vertical else 4
-    margin_v = 560 if vertical else 70
-    max_words = 3 if vertical else 7
-    hook_size = int(font_size * 0.9)
+    size = st.size if (vertical or style is None) else max(28, int(st.size * 0.7))
+    outline = st.outline if vertical else max(0, round(st.outline * 0.7))
+    align, margin_v = {
+        "low": (2, 560 if vertical else 70), "middle": (5, 0), "top": (8, 420 if vertical else 60),
+    }[st.position]
+    max_words = st.words_per_line if vertical else max(5, st.words_per_line * 2 + 1)
+    border_style, shadow = (3, 0) if st.box else (1, 2)
+    font_name = st.font if st.font in FONTS else "Arial Black"   # never put unvalidated text in the header
+    hook_size = int(size * 0.9)
     head = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: {w}
@@ -89,21 +106,24 @@ ScaledBorderAndShadow: yes
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Sub,{font},{font_size},&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,1,0,1,{outline},2,2,60,60,{margin_v},1
-Style: Hook,{font},{hook_size},&H00000000,&H00000000,&H0000F0FF,&H0000F0FF,-1,0,0,0,100,100,1,0,3,18,0,8,80,80,{220 if vertical else 60},1
-Style: Credit,Arial,{int(font_size * 0.38)},&H00FFFFFF,&H00FFFFFF,&H00000000,&H90000000,0,0,0,0,100,100,0,0,1,2,1,7,30,30,30,1
+Style: Sub,{font_name},{size},{ass_color(st.text_color)},{ass_color(st.text_color)},{ass_color(st.outline_color)},&H80000000,-1,0,0,0,100,100,1,{st.angle},{border_style},{outline},{shadow},{align},60,60,{margin_v},1
+Style: Hook,{font_name},{hook_size},&H00000000,&H00000000,&H0000F0FF,&H0000F0FF,-1,0,0,0,100,100,1,{st.angle},3,18,0,8,80,80,{220 if vertical else 60},1
+Style: Credit,Arial,{int(size * 0.38)},&H00FFFFFF,&H00FFFFFF,&H00000000,&H90000000,0,0,0,0,100,100,0,0,1,2,1,7,30,30,30,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     ev: list[str] = []
-    highlight = "&H" + highlight.upper().replace("&H", "").replace("&", "")[-6:] + "&"  # \c wants &HBBGGRR&
+    highlight = ass_color(st.highlight_color)[4:] + "&"     # \c wants &HBBGGRR&
+    highlight = "&H" + highlight
+    lead = r"{\blur3}" if st.glow else ""
+    pop_on = st.pop and vertical
     bad = profanity or []
     kws = {k.upper() for k in (keywords or [])}
     chunks = chunk_words(clean_words(words), max_words)
     for ci, chunk in enumerate(chunks):
         texts = [_esc(censor(x.text, bad)) for x in chunk]
-        if vertical:
+        if vertical and st.uppercase:
             texts = [t.upper() for t in texts]
         # hold the last word until the next chunk if the pause is short (avoids flicker)
         nxt = chunks[ci + 1][0].start if ci + 1 < len(chunks) else None
@@ -117,14 +137,15 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     end = nxt
             parts = []
             for j, t in enumerate(texts):
+                reset = r"{\r" + (r"\blur3" if st.glow else "") + "}"
                 if j == i:
-                    pop = r"\fscx118\fscy118\t(0,90,\fscx108\fscy108)" if vertical else ""
-                    parts.append(rf"{{\c{highlight}{pop}}}{t}{{\r}}")
+                    pop = r"\fscx118\fscy118\t(0,90,\fscx108\fscy108)" if pop_on else ""
+                    parts.append(rf"{{\c{highlight}{pop}}}{t}{reset}")
                 elif t.strip(".,!?").upper() in kws:
-                    parts.append(rf"{{\c&H4CFF00&}}{t}{{\r}}")
+                    parts.append(rf"{{\c&H4CFF00&}}{t}{reset}")
                 else:
                     parts.append(t)
-            ev.append(f"Dialogue: 0,{_ts(start)},{_ts(end)},Sub,,0,0,0,,{' '.join(parts)}")
+            ev.append(f"Dialogue: 0,{_ts(start)},{_ts(end)},Sub,,0,0,0,,{lead}{' '.join(parts)}")
     if hook:
         hk = _esc(hook.upper() if vertical else hook)
         ev.append(f"Dialogue: 1,{_ts(0)},{_ts(min(2.8, duration))},Hook,,0,0,0,,"

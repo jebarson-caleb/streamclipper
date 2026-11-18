@@ -136,6 +136,17 @@ def encode_args(crf: int = 21) -> list[str]:
 AUDIO_ARGS = ["-c:a", "aac", "-b:a", "160k", "-ar", "48000"]
 
 
+def ass_filter(ass_file) -> str:
+    """ffmpeg `ass` filter for a subtitle file, with the bundled caption fonts available to libass."""
+    from .edit.caption_style import fonts_dir
+
+    f = f"ass=filename='{ass_path_escape(str(ass_file))}'"
+    fonts = fonts_dir()
+    if fonts.is_dir():
+        f += f":fontsdir='{ass_path_escape(str(fonts))}'"
+    return f
+
+
 def ass_path_escape(p: str) -> str:
     """Escape a Windows path for use inside an ffmpeg filter argument."""
     return p.replace("\\", "/").replace(":", "\\:").replace("'", "\\'")

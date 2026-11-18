@@ -14,13 +14,13 @@ StreamClipper runs in the background on your PC and does the following:
 - cuts each moment into a **Short (9:16)** or a **long 16:9 video**, with animated word-by-word subtitles,
 - **schedules uploads to YouTube** in release slots, with no human steps.
 
-It is built for a 4 GB GPU such as an RTX 3050: Whisper `small` int8 and a 3B Q4 LLM take turns on the GPU.
+It is built for a 4 GB GPU such as an RTX 3050: Whisper `small` int8 and a 4B Q4 LLM (Qwen3-4B) take turns on the GPU.
 
 ## Install (Windows)
 
 1. Download **`StreamClipper-Setup-<version>.exe`** from the [latest release](https://github.com/jebarson-caleb/streamclipper/releases/latest).
 2. Run it. It installs for your user only (no admin prompt) and adds Start-menu and desktop shortcuts.
-3. StreamClipper opens with a **setup guide**. While you read it, the app downloads its AI models once (about 2.5 GB):
+3. StreamClipper opens with a **setup guide**. While you read it, the app downloads its AI models once (about 3 GB):
    1. **Getting the AI ready**: video engine, AI model and speech model, each with a live status.
    2. **YouTube (optional)**: pick your Google OAuth client file and click Connect.
    3. **Your first stream**: paste a live link and click Start clipping.
@@ -89,6 +89,8 @@ Each stage is a status in SQLite. If the PC crashes or reboots, the tool resumes
 | **hybrid** | best moments become Shorts, and the whole stream also goes up as long parts | | |
 
 ## Features
+- **Caption styles** (Captions page): seven presets (Bold pop, Clean, Boxed, Neon, Editorial, Marker, Comic), then your own font, size, colors, outline or solid box, uppercase, position, **tilt angle**, pop and glow. A live preview shows changes as you make them, and "Render a real frame" draws one exactly as clips will look. Eight free display fonts are bundled.
+- **Streamer mode** (top-right button): if the dashboard ends up on your stream, *Blur private info* hides links, file paths, account names, logs and private video links until you click one, and *Hide the whole screen* covers everything until you press Show, then covers it again when you switch to another window.
 - **Permission guard**: each channel must be marked `own` or `allowed` (with a proof note), otherwise it is never clipped. Allowlisted creators get an automatic on-screen and description credit.
 - **Manual triggers**: a dashboard "✂ Clip last 60s" button, and a `!clip` command typed in chat by mods or the broadcaster.
 - **Smart vertical layout**: sports, gameplay and IRL get an **action-tracking 9:16 crop**. It follows where the motion is, glides within a shot, and can jump at a cut. Just Chatting gets a face-centred crop, but only for a real talking head, never a bystander. A webcam fixed in a corner gets facecam on top and gameplay below. If the action is too spread out to fit 9:16, the tool uses a blurred-background fit.
@@ -107,7 +109,7 @@ Each stage is a status in SQLite. If the PC crashes or reboots, the tool resumes
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\setup.ps1
 ```
-This installs Python 3.11, ffmpeg and Ollama through winget, creates `.venv`, installs the dependencies and CUDA DLLs, and pulls `qwen2.5:3b-instruct-q4_K_M`.
+This installs Python 3.11, ffmpeg and Ollama through winget, creates `.venv`, installs the dependencies and CUDA DLLs, and pulls `qwen3:4b`.
 
 **YouTube API**:
 1. Create a Google Cloud project and enable **YouTube Data API v3**.
@@ -158,7 +160,7 @@ It downloads the pinned tools into `vendor\` ([`scripts/fetch_vendor.ps1`](scrip
 
 The app runs on the **official, signed Python runtime** from python.org rather than a self-built exe. Windows Smart App Control blocks unsigned programs it hasn't seen before, and those programs can't load unsigned libraries either; with the signed Python as the host, the app's libraries load normally. Only the installer itself is unsigned (see [Known limits](#known-limits)).
 
-Bundled third-party tools: Python 3.11 embeddable (PSF license), ffmpeg ([GyanD build](https://github.com/GyanD/codexffmpeg), GPLv3, license in `vendor\ffmpeg\LICENSE`), llama.cpp (MIT) and deno (MIT). The AI model is [Qwen2.5-3B-Instruct GGUF](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF), downloaded from Hugging Face on first launch under its own license.
+Bundled third-party tools: Python 3.11 embeddable (PSF license), ffmpeg ([GyanD build](https://github.com/GyanD/codexffmpeg), GPLv3, license in `vendor\ffmpeg\LICENSE`), llama.cpp (MIT) and deno (MIT). The AI model is [Qwen3-4B GGUF](https://huggingface.co/Qwen/Qwen3-4B-GGUF) (Apache-2.0, so commercial use such as monetized uploads is allowed), downloaded from Hugging Face on first launch. If you pick a different model, check its license yourself.
 
 ### Releases
 Push a version tag and GitHub Actions builds the installer and attaches it to a release:
@@ -188,6 +190,17 @@ tests/              pytest suite
 ## Contributing
 Issues and pull requests are welcome. Run `pytest` before opening a PR.
 Only clip streams you own or have the creator's permission to clip; the permission guard is there on purpose.
+
+## Privacy
+
+StreamClipper has no telemetry, accounts or servers of its own. This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it. It only connects to:
+
+- the stream and video sites you add, to record them;
+- Hugging Face, once, to download the AI and speech models;
+- YouTube (Google), only after you connect an account, to upload and schedule your clips and read their view counts;
+- Discord or Telegram, only if you set up notifications.
+
+Recordings, clips, transcripts, settings and your YouTube login tokens stay on your PC, in the app's `data` folder. Those services handle your data under their own privacy policies.
 
 ## Disclaimer
 

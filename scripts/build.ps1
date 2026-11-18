@@ -51,6 +51,7 @@ Move-Item "$site\bin\deno.exe" "$app\vendor\deno\deno.exe"
 Remove-Item -Recurse -Force "$site\bin"
 
 Copy-Item "vendor\ffmpeg" "$app\vendor\ffmpeg" -Recurse
+Copy-Item "vendor\fonts" "$app\vendor\fonts" -Recurse
 New-Item -ItemType Directory -Force "$app\vendor\llama" | Out-Null
 # ggml-rpc.dll (multi-machine inference) isn't used and Smart App Control blocks it
 Get-ChildItem "vendor\llama" -File | Where-Object { ($_.Extension -eq ".dll" -and $_.Name -ne "ggml-rpc.dll") -or $_.Name -eq "llama-server.exe" -or $_.Name -like "LICENSE*" } |

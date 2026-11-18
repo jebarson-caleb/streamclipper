@@ -6,7 +6,7 @@
   <h1 class="display reveal section-title"><span class="ln"><span>Your <span class="serif">channels</span></span></span></h1>
 </section>
 
-{% if msg %}<p class="card-flat border-l-8 font-semibold" style="border-color:var(--red)" role="alert">{{ msg }}</p>{% endif %}
+{% if msg %}<p class="card-flat border-l-8 font-semibold" style="border-color:var(--red)" role="alert"><span class="pii">{{ msg }}</span></p>{% endif %}
 
 <section class="card fade-up" aria-labelledby="form-title">
   <h2 id="form-title" class="display text-3xl mb-5">{{ 'Edit ' ~ c.name if c else 'Add a channel' }}</h2>
@@ -18,14 +18,14 @@
         <option value="auto" {{ 'selected' if not c }}>Auto-detect</option>
         {% for p in ['twitch','youtube','kick','tiktok','facebook','instagram','x','rumble','trovo','dlive','bilibili','soop','web','direct','file'] %}<option {{ 'selected' if c and c.platform==p }}>{{ p }}</option>{% endfor %}</select></div>
       <div class="md:col-span-2"><label for="c-url">Live link, raw .m3u8 / RTMP URL, or local video path</label>
-        <input id="c-url" name="url" required placeholder="https://twitch.tv/yourname" value="{{ c.url if c else '' }}"></div>
+        <input id="c-url" name="url" class="pii" required placeholder="https://twitch.tv/yourname" value="{{ c.url if c else '' }}"></div>
 
       <div><label for="c-perm">Clipping permission</label><select id="c-perm" name="permission" aria-describedby="c-perm-hint">
         {% for v, l in [('own','My own channel'),('allowed','Creator allowed it'),('none','No permission (disabled)')] %}
         <option value="{{ v }}" {{ 'selected' if c and c.permission==v }}>{{ l }}</option>{% endfor %}</select>
         <p id="c-perm-hint" class="hint mt-1">Channels without permission are never clipped.</p></div>
       <div class="md:col-span-3"><label for="c-note">Permission note or proof link</label>
-        <input id="c-note" name="permission_note" value="{{ c.permission_note if c else '' }}"></div>
+        <input id="c-note" name="permission_note" class="pii" value="{{ c.permission_note if c else '' }}"></div>
     </div>
 
     <fieldset>
@@ -48,7 +48,7 @@
         <option value="{{ v }}" {{ 'selected' if c and c.outputs==v }}>{{ l }}</option>{% endfor %}</select></div>
       <div><label for="c-thr">Score threshold (0–10)</label><input id="c-thr" name="threshold" type="number" min="0" max="10" step="0.1" value="{{ c.threshold if c else 7 }}"></div>
       <div><label for="c-max">Max clips per stream</label><input id="c-max" name="max_clips_per_stream" type="number" min="0" value="{{ c.max_clips_per_stream if c else 8 }}"></div>
-      <div><label for="c-acc">Post to YouTube account</label><select id="c-acc" name="target_account">
+      <div><label for="c-acc">Post to YouTube account</label><select id="c-acc" name="target_account" class="pii">
         {% for a in accounts %}<option {{ 'selected' if c and c.target_account==a }}>{{ a }}</option>{% endfor %}</select></div>
       <div><label for="c-long">Long part length (s)</label><input id="c-long" name="continuous_len_s" type="number" min="1" value="{{ c.continuous_len_s if c else 600 }}"></div>
       <div><label for="c-short">Short part length (s)</label><input id="c-short" name="continuous_short_len_s" type="number" min="1" value="{{ c.continuous_short_len_s if c else 55 }}"></div>
@@ -84,7 +84,7 @@
       <th scope="row" class="font-bold normal-case text-sm tracking-normal border-b border-[#e4e3df]">{{ ch.name }}</th><td>{{ ch.platform }}</td>
       <td>{{ ch.permission }}</td><td>{{ ch.mode }}</td><td>{{ ch.outputs }}</td>
       <td>{% if ch.id in active %}<span class="pill pill-live">Recording</span>{% elif ch.enabled %}<span class="pill pill-blue">Watching</span>{% else %}<span class="pill">Disabled</span>{% endif %}
-        {% if errors.get(ch.id) %}<p class="warn text-xs mt-1">{{ errors[ch.id] }}</p>{% endif %}</td>
+        {% if errors.get(ch.id) %}<p class="warn text-xs mt-1 pii">{{ errors[ch.id] }}</p>{% endif %}</td>
       <td><div class="flex flex-wrap gap-2 justify-end">
         <a class="btn" href="/channels?edit={{ ch.id }}">Edit<span class="sr-only"> {{ ch.name }}</span></a>
         <form method="post" action="/channels/{{ ch.id }}/start"><button class="btn">{{ 'Process file' if ch.platform=='file' else 'Record now' }}<span class="sr-only"> {{ ch.name }}</span></button></form>

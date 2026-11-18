@@ -50,7 +50,7 @@ any third party's rights.
 ## 6. Third-party components and services
 
 StreamClipper bundles or downloads third-party software and models (including Python, ffmpeg, llama.cpp, deno,
-yt-dlp, streamlink, Whisper and Qwen models), each under its own license and terms, and talks to third-party
+yt-dlp, streamlink, Whisper and Qwen models, and fonts under the SIL Open Font License and Apache 2.0), each under its own license and terms, and talks to third-party
 services. The authors don't control them and make no promises about them. You are responsible for complying with
 their licenses and terms.
 

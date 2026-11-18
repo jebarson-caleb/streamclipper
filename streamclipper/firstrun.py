@@ -54,7 +54,7 @@ def status() -> dict:
         ai = "ready" if STATUS.get("llm") == "ready" else ("missing" if not _ollama_exe() else "starting")
     pct = int(dl["done"] * 100 / dl["total"]) if dl.get("total") else 0
     return {"ffmpeg": ffmpeg_path(), "bundled": bundled(), "ai": ai, "ai_pct": pct, "ai_error": dl.get("error", ""),
-            "ai_gb": round(dl.get("total", 0) / 1e9, 1) or 2.1, "whisper": STATUS.get("whisper", "loading"),
+            "ai_gb": round(dl.get("total", 0) / 1e9, 1) or 2.5, "whisper": STATUS.get("whisper", "loading"),
             "secret": Path(s.publish.client_secret).exists(), "accounts": connected_accounts()}
 
 

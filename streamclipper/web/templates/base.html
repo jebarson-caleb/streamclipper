@@ -1,9 +1,13 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <script>
+    (() => { let m = "blur"; try { m = localStorage.getItem("sc-streamer") || "blur"; } catch {}
+             document.documentElement.dataset.streamer = m; })();
+  </script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}{{ {"home":"Dashboard","channels":"Channels","moments":"Moments","clips":"Clips & queue","settings":"Settings","logs":"Logs","welcome":"Welcome"}.get(page, "") }}{% endblock %} · StreamClipper</title>
+  <title>{% block title %}{{ {"home":"Dashboard","channels":"Channels","moments":"Moments","clips":"Clips & queue","settings":"Settings","logs":"Logs","welcome":"Welcome","captions":"Captions"}.get(page, "") }}{% endblock %} · StreamClipper</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;800;900&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
@@ -123,6 +127,14 @@
       .reveal > .ln > span { transform: none; } .fade-up { opacity: 1; translate: none; }
       .scribble path { stroke-dashoffset: 0; } #wipe { display: none; }
     }
+    /* streamer mode: keep private info off your stream */
+    [data-streamer="blur"] .pii:not(.revealed), [data-streamer="hide"] .pii:not(.revealed) {
+      filter: blur(8px); cursor: pointer; user-select: none; }
+    [data-streamer="blur"] .pii:not(.revealed) *, [data-streamer="hide"] .pii:not(.revealed) * { pointer-events: none; }
+    #curtain { position: fixed; inset: 0; z-index: 80; display: none; place-items: center; text-align: center;
+               background: var(--ink); color: var(--paper); padding: 2rem; }
+    [data-streamer="hide"] #curtain:not(.open) { display: grid; }
+    .streamer-btn[aria-pressed="true"] { background: var(--pink); }
     @media (max-width: 767px) {
       .topbar { flex-wrap: wrap; padding: .7rem 1rem; }
       .topbar nav { order: 3; width: 100%; }
@@ -137,8 +149,16 @@
 <body class="min-h-screen">
   <a class="skip" href="#main">Skip to content</a>
   <div id="wipe" aria-hidden="true"></div>
+  <div id="curtain" role="dialog" aria-modal="true" aria-labelledby="curtain-title">
+    <div class="space-y-5">
+      <p class="eyebrow">Streamer mode</p>
+      <h2 id="curtain-title" class="display text-[clamp(2.5rem,8vw,5rem)]">Hidden <span class="serif">for stream</span></h2>
+      <button type="button" id="curtain-show" class="btn btn-pink">Show dashboard</button>
+      <p class="text-sm opacity-70">It hides again when you switch to another window.</p>
+    </div>
+  </div>
 
-  {% set nav = [("home","Dashboard"),("channels","Channels"),("moments","Moments"),("clips","Clips"),("settings","Settings"),("logs","Logs")] %}
+  {% set nav = [("home","Dashboard"),("channels","Channels"),("moments","Moments"),("clips","Clips"),("captions","Captions"),("settings","Settings"),("logs","Logs")] %}
   <header class="topbar">
     <a href="/" class="brand" aria-label="StreamClipper home">StreamClipper</a>
     <nav aria-label="Main">
@@ -148,7 +168,18 @@
         {% endfor %}
       </ul>
     </nav>
-    <span class="chip-status hidden md:inline-flex"><span aria-hidden="true" class="w-2 h-2 rounded-full" style="background:var(--green)"></span>Local AI</span>
+    <div class="relative">
+      <button type="button" id="streamer-btn" class="chip-status streamer-btn" aria-haspopup="true" aria-expanded="false" aria-controls="streamer-menu">
+        <span aria-hidden="true">◐</span> <span id="streamer-label">Streamer mode</span></button>
+      <div id="streamer-menu" class="hidden absolute right-0 mt-2 w-72 card z-50 space-y-3" role="group" aria-label="Streamer mode">
+        <p class="text-sm font-semibold">Is this window on your stream?</p>
+        {% for v, t, d in [("off","Off","Show everything"),("blur","Blur private info","Links, file paths, accounts and logs are blurred; click one to show it"),("hide","Hide the whole screen","A cover until you press Show; it comes back when you switch away")] %}
+        <label class="flex gap-2 items-start mb-0 normal-case tracking-normal font-normal text-sm cursor-pointer">
+          <input type="radio" name="streamer" value="{{ v }}" class="w-4 h-4 mt-1">
+          <span><b class="uppercase text-xs tracking-wide">{{ t }}</b><br><span class="hint">{{ d }}</span></span></label>
+        {% endfor %}
+      </div>
+    </div>
   </header>
 
   <main id="main" tabindex="-1" class="max-w-6xl mx-auto px-5 pb-28 space-y-6">
@@ -199,6 +230,48 @@
         setTimeout(() => { location.href = a.href; }, 430);
       });
       addEventListener("pageshow", ev => { if (ev.persisted) hide(); });
+    })();
+  </script>
+
+  <script>
+    (() => {
+      const root = document.documentElement, btn = document.getElementById("streamer-btn"),
+            menu = document.getElementById("streamer-menu"), curtain = document.getElementById("curtain"),
+            label = document.getElementById("streamer-label");
+      const names = { off: "Streamer mode: off", blur: "Streamer mode: blur", hide: "Streamer mode: hide" };
+      function setMode(m) {
+        root.dataset.streamer = m;
+        try { localStorage.setItem("sc-streamer", m); } catch {}
+        label.textContent = names[m];
+        btn.setAttribute("aria-pressed", m === "off" ? "false" : "true");
+        menu.querySelectorAll("input").forEach(i => { i.checked = i.value === m; });
+        curtain.classList.remove("open");
+      }
+      setMode(root.dataset.streamer in names ? root.dataset.streamer : "blur");
+      btn.addEventListener("click", () => {
+        const open = menu.classList.toggle("hidden") === false;
+        btn.setAttribute("aria-expanded", open);
+      });
+      menu.addEventListener("change", e => setMode(e.target.value));
+      document.addEventListener("click", e => {
+        if (!menu.classList.contains("hidden") && !e.target.closest("#streamer-menu, #streamer-btn")) {
+          menu.classList.add("hidden"); btn.setAttribute("aria-expanded", "false");
+        }
+        // click a blurred item to show just that item
+        const p = e.target.closest(".pii");
+        if (p && root.dataset.streamer !== "off" && !p.classList.contains("revealed")) {
+          e.preventDefault(); e.stopPropagation(); p.classList.add("revealed");
+        }
+      }, true);
+      document.addEventListener("focusin", e => {   // keyboard: tabbing into a blurred field shows it
+        const p = e.target.closest(".pii"); if (p) p.classList.add("revealed");
+      });
+      document.getElementById("curtain-show").addEventListener("click", () => curtain.classList.add("open"));
+      // the cover comes back when you switch away (e.g. back to the game or OBS)
+      addEventListener("blur", () => { if (root.dataset.streamer === "hide") curtain.classList.remove("open"); });
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden && root.dataset.streamer === "hide") curtain.classList.remove("open");
+      });
     })();
   </script>
 </body>

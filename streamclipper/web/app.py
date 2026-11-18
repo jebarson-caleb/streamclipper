@@ -432,6 +432,74 @@ async def toggle_review():
     return RedirectResponse("/settings", 303)
 
 
+# --------------------------------------------------------------------------- caption style
+@app.get("/captions", response_class=HTMLResponse)
+async def captions_page(request: Request, msg: str = ""):
+    from dataclasses import asdict
+
+    from ..edit import caption_style as cs
+
+    return templates.TemplateResponse(request, "captions.html", {
+        "page": "captions", "msg": msg, "st": cs.load(), "fonts": list(cs.FONTS), "positions": cs.POSITIONS,
+        "presets": {k: asdict(cs.preset(k)) for k in cs.PRESETS}, "labels": cs.PRESET_LABELS,
+        "font_files": {k: v for k, v in cs.FONTS.items() if v}})
+
+
+@app.post("/captions/save")
+async def captions_save(request: Request):
+    from urllib.parse import quote
+
+    from ..edit import caption_style as cs
+
+    cs.save(cs.validate(dict(await request.form())))
+    return RedirectResponse(f"/captions?msg={quote('Caption style saved. New clips use it.')}", 303)
+
+
+_preview_lock = asyncio.Lock()
+
+
+@app.post("/captions/preview", response_class=HTMLResponse)
+async def captions_preview(request: Request):
+    """Render one real 9:16 frame with libass, exactly as clips will look. One render at a time."""
+    import base64
+    import tempfile
+
+    from ..edit import caption_style as cs
+    from ..edit import subtitles as subs
+    from ..ffmpeg_utils import FFmpegError, ass_filter, run
+
+    style = cs.validate(dict(await request.form()))
+    words = [subs.Word(i * 0.5, i * 0.5 + 0.45, t) for i, t in enumerate("no way that just happened".split())]
+    if _preview_lock.locked():
+        return HTMLResponse("<p class='hint'>A preview is already rendering…</p>")
+    async with _preview_lock:
+        with tempfile.TemporaryDirectory(dir=get_settings().data_dir) as tmp:
+            ass, png = Path(tmp) / "preview.ass", Path(tmp) / "preview.png"
+            ass.write_text(subs.build_ass(words, 2.5, True, hook="", style=style), encoding="utf-8")
+            try:
+                await run(["-hide_banner", "-y", "-f", "lavfi", "-i", "color=c=0x1d1530:s=1080x1920:d=2.5",
+                           "-vf", ass_filter(ass), "-ss", "0.7", "-frames:v", "1", str(png)], timeout=60)
+                data = base64.b64encode(png.read_bytes()).decode()
+            except (FFmpegError, OSError) as e:
+                log.warning("caption preview failed: %s", e)
+                return HTMLResponse("<p class='bad text-sm'>Preview failed; check the logs.</p>")
+    return HTMLResponse(f"<img src='data:image/png;base64,{data}' alt='Rendered caption preview' "
+                        "class='w-full border-2' style='border-color:var(--ink)'>")
+
+
+@app.get("/fonts/{name}")
+async def font_file(name: str):
+    """Bundled caption fonts for the live preview. Only the listed files, never a path."""
+    from ..edit import caption_style as cs
+
+    if name not in {f for f in cs.FONTS.values() if f}:
+        raise HTTPException(404)
+    p = cs.fonts_dir() / name
+    if not p.is_file():
+        raise HTTPException(404)
+    return FileResponse(p, media_type="font/ttf", headers={"Cache-Control": "max-age=86400"})
+
+
 @app.get("/logs", response_class=HTMLResponse)
 async def logs(request: Request):
     return templates.TemplateResponse(request, "logs.html", {"page": "logs"})

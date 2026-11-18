@@ -34,12 +34,14 @@ class Whisper(BaseModel):
 
 class LLM(BaseModel):
     backend: str = "auto"   # auto: bundled llama.cpp in the packaged exe, Ollama from source | llamacpp | ollama
-    gguf_url: str = "https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q4_k_m.gguf"
-    gguf_sha256: str = "626b4a6678b86442240e33df819e00132d3ba7dddfe1cdc4fbb18e0a9615c62d"
+    # Qwen3-4B, Apache-2.0 (commercial use allowed). Qwen2.5-3B was non-commercial (Qwen Research License).
+    gguf_url: str = "https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/main/Qwen3-4B-Q4_K_M.gguf"
+    gguf_sha256: str = "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5"
+    gguf_layers: int = 36                # transformer layers in that model (for partial GPU offload)
     server_port: int = 11435             # bundled llama-server (127.0.0.1 only)
     base_url: str = "http://127.0.0.1:11434"
-    model: str = "qwen2.5:3b-instruct-q4_K_M"
-    fallback_model: str = "llama3.2:3b"
+    model: str = "qwen3:4b"               # Ollama (source installs); Apache-2.0
+    fallback_model: str = "qwen2.5:1.5b"   # Apache-2.0
     keep_alive: str = "30s"
     timeout_seconds: float = 180
 
