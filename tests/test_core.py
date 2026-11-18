@@ -468,3 +468,31 @@ def test_broadcast_glitch_detected_by_lost_overlay():
     assert broken_frames(good) == 0
     assert broken_frames(good + glitch) == 4
     assert broken_frames([rng.random((36, 64)) < 0.1 for _ in range(20)]) == 0  # no overlay: can't judge
+
+
+def test_judge_calibration_caps_unsupported_scores():
+    from streamclipper.detect.llm_judge import calibrate, sanitize
+
+    assert calibrate(8, {"payoff": False, "reaction": "strong", "standalone": True}) == 4.5   # nothing happened
+    assert calibrate(8, {"payoff": True, "reaction": "none", "standalone": True}) == 4.5      # nobody reacted
+    assert calibrate(9, {"payoff": True, "reaction": "some", "standalone": True}) == 7.0      # mild reaction
+    assert calibrate(9, {"payoff": True, "reaction": "strong", "standalone": False}) == 8.0   # needs context
+    assert calibrate(9, {"payoff": "true", "reaction": "STRONG", "standalone": "yes"}) == 9.0 # strings work
+    assert calibrate(8, {}) == 8.0                                                            # old-style reply
+    assert calibrate(42, {}) == 10.0 and calibrate(-3, {}) == 0.0
+    j = sanitize({"score": 8, "payoff": False, "reaction": "none", "start": 10, "end": 40}, 0, 60, 15, 55)
+    assert j.score == 4.5
+
+
+def test_chat_excitement_and_evidence_cap(settings_tmp=None):
+    from streamclipper.detect.llm_judge import evidence_cap, is_excited
+
+    for m in ["KEKW", "W", "NO WAY", "noooo", "wwwww", "ㅋㅋㅋㅋ", "😂", "that was nuts!", "monkaS", "lets go"]:
+        assert is_excited(m), m
+    for m in ["ok", "yes", "hi", "nice", "ty", "o7", "too loud", "good", "?", ""]:
+        assert not is_excited(m), m
+    assert evidence_cap(9, excitement=0.0, n_chat=20, hype=2.2) == 4.5    # calm chat, normal audio: not a clip
+    assert evidence_cap(9, excitement=0.0, n_chat=20, hype=3.5) == 9      # audio spike still counts
+    assert evidence_cap(9, excitement=0.6, n_chat=20, hype=2.0) == 9      # excited chat
+    assert evidence_cap(9, excitement=0.0, n_chat=2, hype=2.0) == 9       # too little chat to judge
+    assert evidence_cap(9, excitement=0.0, n_chat=0, hype=2.0) == 9       # platform without chat reading
