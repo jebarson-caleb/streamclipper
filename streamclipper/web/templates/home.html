@@ -1,35 +1,53 @@
 {% extends "base.html" %}
 {% block body %}
-{% if msg %}<div class="card text-sky-200">{{ msg }}</div>{% endif %}
+<section class="pt-10 pb-4 text-center" aria-labelledby="hero-title">
+  <p class="eyebrow mb-4">Local AI that watches your stream,<br>finds the moments &amp; posts them</p>
+  <h1 id="hero-title" class="display reveal text-[clamp(3rem,10vw,8rem)]">
+    <span class="ln"><span>Clip your</span></span>
+    <span class="ln"><span>stream <span class="serif scribble">into shorts<svg viewBox="0 0 300 20" preserveAspectRatio="none" aria-hidden="true"><path d="M3 14 C 60 4, 120 18, 180 9 S 270 6, 297 12"/></svg></span></span></span>
+  </h1>
+</section>
 
-<div class="card">
-  <h2 class="font-semibold mb-1">Paste a live link</h2>
-  <p class="text-xs text-gray-400 mb-3">Any platform: Twitch, YouTube, Kick, TikTok, Facebook, Instagram, X, Rumble, Trovo, DLive, Bilibili, SOOP,
-    any page with a live player, raw .m3u8 / RTMP / SRT URLs, or a local video file path.</p>
-  <form method="post" action="/quick" class="grid md:grid-cols-6 gap-3 items-end">
-    <div class="md:col-span-4"><label>Live link or file path</label>
-      <input name="url" required autofocus placeholder="https://www.twitch.tv/yourname  ·  https://kick.com/you  ·  https://youtube.com/@you/live"></div>
-    <div class="md:col-span-2"><label>Name (optional)</label><input name="name" placeholder="auto from link"></div>
-    <div class="md:col-span-2"><label>Whose stream? (required)</label>
-      <select name="permission" required>
-        <option value="" selected disabled>choose…</option>
+{% if msg %}<div class="card-flat border-l-8 fade-up" style="border-color:var(--blue)" role="status">{{ msg }}</div>{% endif %}
+
+<section class="card frame-blue tilt-l lift fade-up" aria-labelledby="paste-title">
+  <div class="flex flex-wrap items-end justify-between gap-2 mb-4">
+    <h2 id="paste-title" class="display text-3xl md:text-4xl">Paste a <span class="serif">live link</span></h2>
+    <p class="hint max-w-md">Twitch, YouTube, Kick, TikTok, Facebook, Instagram, X, Rumble, Trovo, Bilibili, SOOP, any page with a live player, raw .m3u8 / RTMP / SRT, or a local video file.</p>
+  </div>
+  <form method="post" action="/quick" class="grid md:grid-cols-6 xl:grid-cols-7 gap-4 items-end">
+    <div class="md:col-span-4 xl:col-span-5"><label for="q-url">Live link or file path</label>
+      <input id="q-url" name="url" required autofocus autocomplete="url" placeholder="https://www.twitch.tv/yourname"></div>
+    <div class="md:col-span-2"><label for="q-name">Name <span class="font-normal normal-case">(optional)</span></label>
+      <input id="q-name" name="name" placeholder="auto from link"></div>
+    <div class="md:col-span-2"><label for="q-perm">Whose stream? <span aria-hidden="true">*</span></label>
+      <select id="q-perm" name="permission" required aria-describedby="q-perm-hint">
+        <option value="" selected disabled>Choose…</option>
         <option value="own">My own stream</option>
         <option value="allowed">Creator allowed me to clip</option>
-      </select></div>
-    <div><label>Mode</label><select name="mode">
+      </select>
+      <span id="q-perm-hint" class="sr-only">Required. Streams are only clipped with permission.</span></div>
+    <div><label for="q-mode">Mode</label><select id="q-mode" name="mode">
       <option value="best_moments">Best moments</option>
       <option value="continuous">Continuous cuts</option>
       <option value="hybrid">Hybrid</option></select></div>
-    <div><label>Output</label><select name="outputs">
+    <div><label for="q-out">Output</label><select id="q-out" name="outputs">
       <option value="shorts">Shorts 9:16</option>
       <option value="long">Long 16:9</option>
       <option value="both">Both</option></select></div>
-    <label class="flex items-center gap-2 text-sm text-gray-200 pb-1"><input type="checkbox" name="watch" class="w-auto" checked> Keep watching</label>
-    <button class="btn btn-p">▶ Start clipping</button>
+    <div class="md:col-span-2 xl:col-span-1 flex items-center gap-2 pb-3"><input id="q-watch" type="checkbox" name="watch" class="w-5 h-5" checked>
+      <label for="q-watch" class="mb-0">Keep watching</label></div>
+    <button class="btn btn-p justify-center py-3 md:col-span-6 xl:col-span-1">Start clipping <span class="arrow" aria-hidden="true">→</span></button>
   </form>
+</section>
+
+<div class="marquee -mx-5 fade-up" aria-hidden="true">
+  <div class="marquee-track">
+    {% for _ in range(2) %}{% for p in ["Twitch","YouTube Live","Kick","TikTok Live","Bilibili","SOOP","Facebook","Instagram","X","Trovo","DLive","Rumble","RTMP","SRT","HLS",".mp4 files"] %}<span>{{ p }}</span>{% endfor %}{% endfor %}
+  </div>
 </div>
 
 <div hx-get="/partials/status" hx-trigger="load, every 5s" hx-swap="innerHTML">
-  <div class="card text-gray-400">Loading…</div>
+  <div class="card-flat hint">Loading status…</div>
 </div>
 {% endblock %}

@@ -1,33 +1,42 @@
 {% extends "base.html" %}
 {% block body %}
-{% if msg %}<div class="card text-sky-300">{{ msg }}</div>{% endif %}
-<div class="card space-y-3">
-  <h2 class="font-semibold">YouTube accounts</h2>
-  {% if not secret_ok %}
-  <div class="text-yellow-300 text-sm">OAuth client file not found at <code>{{ s.publish.client_secret }}</code>.
-    Create a Google Cloud project → enable "YouTube Data API v3" → OAuth consent screen → Credentials → OAuth client ID (Desktop app) → download JSON as <code>client_secret.json</code> in the project folder.</div>
-  {% endif %}
-  {% for a in accounts %}<div class="text-sm">✅ <b>{{ a }}</b> · quota used today {{ quota.get(a, 0) }}/{{ s.publish.daily_quota }}</div>
-  {% else %}<div class="text-sm text-gray-400">No account connected yet.</div>{% endfor %}
-  <form method="post" action="/youtube/connect" class="flex gap-2 items-end max-w-md">
-    <div class="flex-1"><label>Account nickname</label><input name="account" value="default"></div>
-    <button class="btn btn-p">Connect (opens browser)</button>
-  </form>
+<section class="pt-8 text-center">
+  <p class="eyebrow">Accounts, automation and the config in use</p>
+  <h1 class="display reveal section-title"><span class="ln"><span><span class="serif">Settings</span></span></span></h1>
+</section>
+{% if msg %}<p class="card-flat border-l-8" style="border-color:var(--blue)" role="status">{{ msg }}</p>{% endif %}
+
+<div class="grid md:grid-cols-2 gap-6">
+  <section class="card frame-blue tilt-l space-y-4 fade-up" aria-labelledby="yt-title">
+    <h2 id="yt-title" class="display text-3xl">YouTube <span class="serif">accounts</span></h2>
+    {% if not secret_ok %}
+    <p class="warn text-sm">OAuth client file not found at <code>{{ s.publish.client_secret }}</code>.
+      Create a Google Cloud project, enable "YouTube Data API v3", set up the OAuth consent screen, create an OAuth client ID (Desktop app) and save the JSON as <code>client_secret.json</code> in the app folder.</p>
+    {% endif %}
+    <ul class="space-y-1">
+    {% for a in accounts %}<li class="text-sm"><span class="ok font-bold">Connected:</span> <b>{{ a }}</b> · quota used today {{ quota.get(a, 0) }}/{{ s.publish.daily_quota }}</li>
+    {% else %}<li class="hint">No account connected yet.</li>{% endfor %}
+    </ul>
+    <form method="post" action="/youtube/connect" class="flex gap-3 items-end">
+      <div class="flex-1"><label for="acc">Account nickname</label><input id="acc" name="account" value="default"></div>
+      <button class="btn btn-p">Connect <span class="arrow" aria-hidden="true">→</span><span class="sr-only"> (opens your browser)</span></button>
+    </form>
+  </section>
+
+  <section class="card frame-pink tilt-r space-y-4 fade-up" aria-labelledby="auto-title">
+    <h2 id="auto-title" class="display text-3xl"><span class="serif">Automation</span></h2>
+    <form method="post" action="/settings/review" class="flex flex-wrap items-center gap-3">
+      <p class="text-sm">Review mode is <b>{{ 'ON' if s.review_mode else 'OFF (fully automatic)' }}</b></p>
+      <button class="btn" aria-pressed="{{ 'true' if s.review_mode else 'false' }}">Toggle review mode</button>
+      <p class="hint text-xs w-full">Resets to config.yaml on restart.</p>
+    </form>
+    <p class="text-sm">Release slots ({{ s.timezone }}): Shorts {{ s.publish.slots.get('short') }} · Long {{ s.publish.slots.get('long') }} · max {{ s.publish.max_uploads_per_day }}/day</p>
+  </section>
 </div>
 
-<div class="card space-y-2">
-  <h2 class="font-semibold">Automation</h2>
-  <form method="post" action="/settings/review" class="flex items-center gap-3">
-    <span class="text-sm">Review mode is <b>{{ 'ON' if s.review_mode else 'OFF (fully automatic)' }}</b></span>
-    <button class="btn">Toggle</button>
-    <span class="text-xs text-gray-500">(resets to config.yaml on restart)</span>
-  </form>
-  <div class="text-sm text-gray-300">Release slots ({{ s.timezone }}): Shorts {{ s.publish.slots.get('short') }} · Long {{ s.publish.slots.get('long') }} · max {{ s.publish.max_uploads_per_day }}/day</div>
-</div>
-
-<div class="card">
-  <h2 class="font-semibold mb-2">Active configuration</h2>
-  <p class="text-xs text-gray-400 mb-2">Edit <code>config.yaml</code> and restart to change these.</p>
-  <pre class="text-xs whitespace-pre-wrap text-gray-300">{{ s.model_dump_json(indent=2) }}</pre>
-</div>
+<section class="on-dark -mx-5 px-5 py-10 fade-up" aria-labelledby="cfg-title">
+  <h2 id="cfg-title" class="display section-title text-center">Active <span class="serif">config</span></h2>
+  <p class="hint text-center mb-4">Edit <code>config.yaml</code> and restart to change these.</p>
+  <pre class="card text-xs whitespace-pre-wrap overflow-x-auto" tabindex="0" aria-label="Active configuration">{{ s.model_dump_json(indent=2) }}</pre>
+</section>
 {% endblock %}

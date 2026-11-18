@@ -62,9 +62,10 @@ def hype_svg(stream: Stream, width: int = 600, height: int = 70) -> str:
     coords = " ".join(f"{i * width / max(1, len(pts) - 1):.1f},{height - (v - lo) / (hi - lo) * height:.1f}"
                       for i, v in enumerate(pts))
     thr = height - (get_settings().detect.peak_z - lo) / (hi - lo) * height
-    return (f'<svg viewBox="0 0 {width} {height}" class="w-full h-16" preserveAspectRatio="none">'
-            f'<line x1="0" x2="{width}" y1="{thr:.1f}" y2="{thr:.1f}" stroke="#f59e0b" stroke-dasharray="4 4"/>'
-            f'<polyline fill="none" stroke="#38bdf8" stroke-width="1.5" points="{coords}"/></svg>')
+    return (f'<svg viewBox="0 0 {width} {height}" class="w-full h-16" preserveAspectRatio="none" role="img" '
+            f'aria-label="Hype curve for this stream">'
+            f'<line x1="0" x2="{width}" y1="{thr:.1f}" y2="{thr:.1f}" stroke="#ff77cd" stroke-dasharray="4 4"/>'
+            f'<polyline fill="none" stroke="#f4f4f4" stroke-width="1.5" points="{coords}"/></svg>')
 
 
 # --------------------------------------------------------------------------- pages

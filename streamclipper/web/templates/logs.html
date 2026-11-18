@@ -1,4 +1,10 @@
 {% extends "base.html" %}
 {% block body %}
-<div class="card" hx-get="/partials/logs" hx-trigger="load, every 3s" hx-swap="innerHTML">Loading…</div>
+<section class="pt-8 text-center">
+  <p class="eyebrow">Newest first, refreshed every few seconds</p>
+  <h1 class="display reveal section-title"><span class="ln"><span>The <span class="serif">logs</span></span></span></h1>
+</section>
+<section class="on-dark -mx-5 px-5 py-8" aria-label="Log output">
+  <div class="card max-h-[70vh] overflow-y-auto" tabindex="0" hx-get="/partials/logs" hx-trigger="load, every 3s" hx-swap="innerHTML">Loading…</div>
+</section>
 {% endblock %}

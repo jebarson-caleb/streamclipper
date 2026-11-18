@@ -1,24 +1,33 @@
 {% extends "base.html" %}
 {% block body %}
-<div class="card overflow-x-auto">
-<table class="w-full text-sm">
-  <tr class="text-left text-gray-400"><th>Time</th><th>Kind</th><th>Score</th><th>LLM / signal</th><th>Category</th><th>Title · reason</th><th>Status</th><th></th></tr>
-  {% for m in moments %}
-  <tr class="border-t border-gray-800 align-top">
-    <td class="py-2 whitespace-nowrap">{{ m.start|hms }}–{{ m.end|hms }}</td>
-    <td>{{ m.kind }}</td>
-    <td class="font-bold {{ 'text-green-400' if m.score >= 7 else 'text-gray-300' }}">{{ '%.1f' % m.score }}</td>
-    <td class="text-xs text-gray-400">{{ 'n/a' if m.llm_score < 0 else '%.1f' % m.llm_score }} / {{ '%.1f' % m.signal_score }}</td>
-    <td>{{ m.category }}</td>
-    <td><div>{{ m.title }}</div><div class="text-xs text-gray-400">{{ m.reason }}</div>
-      <details class="text-xs text-gray-500"><summary>transcript</summary>{{ m.transcript }}</details></td>
-    <td><span class="pill">{{ m.status }}</span></td>
-    <td>{% if m.status in ['candidate','rejected'] %}
-      <form method="post" action="/moments/{{ m.id }}/force" class="flex gap-1">
-        <select name="fmt" class="w-auto"><option>short</option><option>long</option></select>
-        <button class="btn">Make clip</button></form>{% endif %}</td>
-  </tr>
-  {% else %}<tr><td colspan="8" class="text-gray-400 py-3">No moments yet.</td></tr>{% endfor %}
-</table>
-</div>
+<section class="pt-8 text-center">
+  <p class="eyebrow">Everything the AI flagged, scored and judged</p>
+  <h1 class="display reveal section-title"><span class="ln"><span>The <span class="serif">moments</span></span></span></h1>
+</section>
+
+<section class="card overflow-x-auto fade-up">
+  <table class="w-full text-sm">
+    <caption class="sr-only">Detected moments, newest first</caption>
+    <thead><tr><th scope="col">Time</th><th scope="col">Kind</th><th scope="col">Score</th><th scope="col">LLM / signal</th><th scope="col">Category</th><th scope="col">Title and reason</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>
+    {% for m in moments %}
+    <tr>
+      <td class="whitespace-nowrap">{{ m.start|hms }}–{{ m.end|hms }}</td>
+      <td>{{ m.kind }}</td>
+      <td class="display text-xl {{ 'ok' if m.score >= 7 else '' }}">{{ '%.1f' % m.score }}</td>
+      <td class="hint text-xs">{{ 'n/a' if m.llm_score < 0 else '%.1f' % m.llm_score }} / {{ '%.1f' % m.signal_score }}</td>
+      <td>{{ m.category }}</td>
+      <td><p class="font-semibold">{{ m.title }}</p><p class="hint text-xs">{{ m.reason }}</p>
+        <details class="text-xs hint mt-1"><summary class="cursor-pointer font-semibold">Transcript</summary>{{ m.transcript }}</details></td>
+      <td><span class="pill">{{ m.status }}</span></td>
+      <td>{% if m.status in ['candidate','rejected'] %}
+        <form method="post" action="/moments/{{ m.id }}/force" class="flex gap-2">
+          <label for="f{{ m.id }}" class="sr-only">Format</label>
+          <select id="f{{ m.id }}" name="fmt" class="w-auto"><option>short</option><option>long</option></select>
+          <button class="btn">Make clip</button></form>{% endif %}</td>
+    </tr>
+    {% else %}<tr><td colspan="8" class="hint">No moments yet.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</section>
 {% endblock %}

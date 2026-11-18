@@ -1,67 +1,96 @@
 {% extends "base.html" %}
 {% block body %}
 {% set c = editing %}
-<div class="card">
-  <h2 class="font-semibold mb-3">{{ 'Edit ' ~ c.name if c else 'Add channel' }}</h2>
-  <form method="post" action="/channels/save" class="grid md:grid-cols-4 gap-3">
+<section class="pt-8 text-center">
+  <p class="eyebrow">Every source you clip, in one place</p>
+  <h1 class="display reveal section-title"><span class="ln"><span>Your <span class="serif">channels</span></span></span></h1>
+</section>
+
+<section class="card fade-up" aria-labelledby="form-title">
+  <h2 id="form-title" class="display text-3xl mb-5">{{ 'Edit ' ~ c.name if c else 'Add a channel' }}</h2>
+  <form method="post" action="/channels/save" class="space-y-6">
     {% if c %}<input type="hidden" name="id" value="{{ c.id }}">{% endif %}
-    <div><label>Name</label><input name="name" required value="{{ c.name if c else '' }}"></div>
-    <div><label>Platform</label><select name="platform">
-      <option value="auto" {{ 'selected' if not c }}>auto-detect</option>
-      {% for p in ['twitch','youtube','kick','tiktok','facebook','instagram','x','rumble','trovo','dlive','bilibili','soop','web','direct','file'] %}<option {{ 'selected' if c and c.platform==p }}>{{ p }}</option>{% endfor %}</select></div>
-    <div class="md:col-span-2"><label>Live link from any site, raw .m3u8/RTMP URL, or a local video path</label>
-      <input name="url" required placeholder="https://twitch.tv/yourname  ·  https://youtube.com/@you/live" value="{{ c.url if c else '' }}"></div>
+    <div class="grid md:grid-cols-4 gap-4">
+      <div><label for="c-name">Name</label><input id="c-name" name="name" required value="{{ c.name if c else '' }}"></div>
+      <div><label for="c-platform">Platform</label><select id="c-platform" name="platform">
+        <option value="auto" {{ 'selected' if not c }}>Auto-detect</option>
+        {% for p in ['twitch','youtube','kick','tiktok','facebook','instagram','x','rumble','trovo','dlive','bilibili','soop','web','direct','file'] %}<option {{ 'selected' if c and c.platform==p }}>{{ p }}</option>{% endfor %}</select></div>
+      <div class="md:col-span-2"><label for="c-url">Live link, raw .m3u8 / RTMP URL, or local video path</label>
+        <input id="c-url" name="url" required placeholder="https://twitch.tv/yourname" value="{{ c.url if c else '' }}"></div>
 
-    <div><label>Clipping permission (required)</label><select name="permission">
-      {% for v, l in [('own','My own channel'),('allowed','Creator allowed it'),('none','No permission (disabled)')] %}
-      <option value="{{ v }}" {{ 'selected' if c and c.permission==v }}>{{ l }}</option>{% endfor %}</select></div>
-    <div class="md:col-span-3"><label>Permission note / proof link (for allowed creators)</label>
-      <input name="permission_note" value="{{ c.permission_note if c else '' }}"></div>
+      <div><label for="c-perm">Clipping permission</label><select id="c-perm" name="permission" aria-describedby="c-perm-hint">
+        {% for v, l in [('own','My own channel'),('allowed','Creator allowed it'),('none','No permission (disabled)')] %}
+        <option value="{{ v }}" {{ 'selected' if c and c.permission==v }}>{{ l }}</option>{% endfor %}</select>
+        <p id="c-perm-hint" class="hint mt-1">Channels without permission are never clipped.</p></div>
+      <div class="md:col-span-3"><label for="c-note">Permission note or proof link</label>
+        <input id="c-note" name="permission_note" value="{{ c.permission_note if c else '' }}"></div>
+    </div>
 
-    <div><label>Mode</label><select name="mode">
-      {% for v, l in [('best_moments','Best moments only'),('continuous','Continuous cuts (whole stream in parts)'),('hybrid','Hybrid: best moments as Shorts + long parts')] %}
-      <option value="{{ v }}" {{ 'selected' if c and c.mode==v }}>{{ l }}</option>{% endfor %}</select></div>
-    <div><label>Output</label><select name="outputs">
-      {% for v, l in [('shorts','Shorts (9:16)'),('long','Long (16:9)'),('both','Both')] %}
-      <option value="{{ v }}" {{ 'selected' if c and c.outputs==v }}>{{ l }}</option>{% endfor %}</select></div>
-    <div><label>Score threshold (0-10)</label><input name="threshold" type="number" step="0.1" value="{{ c.threshold if c else 7 }}"></div>
-    <div><label>Max clips per stream</label><input name="max_clips_per_stream" type="number" value="{{ c.max_clips_per_stream if c else 8 }}"></div>
-    <div><label>Long part length (s)</label><input name="continuous_len_s" type="number" value="{{ c.continuous_len_s if c else 600 }}"></div>
-    <div><label>Short part length (s)</label><input name="continuous_short_len_s" type="number" value="{{ c.continuous_short_len_s if c else 55 }}"></div>
-    <div><label>Language hint (en, hi, ta… blank=auto)</label><input name="language" value="{{ c.language if c else '' }}"></div>
-    <div><label>Translate captions to (blank=off)</label><input name="translate_to" value="{{ c.translate_to if c else '' }}"></div>
+    <fieldset>
+      <legend class="label mb-3">Mode</legend>
+      <div class="grid md:grid-cols-3 gap-5">
+        {% for v, l, d, frame, tilt in [('best_moments','Best','moments','frame-blue','tilt-l'),('continuous','Continuous','cuts','frame-pink',''),('hybrid','Hybrid','both','frame-ink','tilt-r')] %}
+        <label class="card {{ frame }} {{ tilt }} lift cursor-pointer has-[:checked]:shadow-[8px_8px_0_#101010] has-[:focus-visible]:outline has-[:focus-visible]:outline-4 has-[:focus-visible]:outline-[#0038ff] mb-0">
+          <input type="radio" name="mode" value="{{ v }}" class="sr-only" {{ 'checked' if (c and c.mode==v) or (not c and v=='best_moments') }}>
+          <span class="display text-3xl block">{{ l }} <span class="serif">{{ d }}</span></span>
+          <span class="hint normal-case font-normal tracking-normal block mt-2">
+            {% if v=='best_moments' %}Only moments above the score threshold become clips.{% elif v=='continuous' %}The whole stream, cut back to back into parts.{% else %}Best moments as Shorts, plus the whole stream as long parts.{% endif %}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </fieldset>
 
-    <div><label>Post to YouTube account</label><select name="target_account">
-      {% for a in accounts %}<option {{ 'selected' if c and c.target_account==a }}>{{ a }}</option>{% endfor %}</select></div>
-    <div class="md:col-span-3"><label>On-screen credit (blank = auto "Clip from …" for allowed creators)</label>
-      <input name="credit_text" value="{{ c.credit_text if c else '' }}"></div>
-    <div class="md:col-span-2"><label>Title template ({title}, {channel})</label><input name="title_template" value="{{ c.title_template if c else '{title}' }}"></div>
-    <div class="md:col-span-2"><label>Extra tags (comma separated)</label><input name="extra_tags" value="{{ c.extra_tags if c else '' }}"></div>
-    <div class="md:col-span-4"><label>Description template ({summary}, {credit}, {hashtags}, {channel}, {title})</label>
-      <textarea name="desc_template" rows="3">{{ c.desc_template if c else '{summary}\n\n{credit}\n\n{hashtags}' }}</textarea></div>
-    <label class="flex items-center gap-2 text-sm text-gray-200"><input type="checkbox" name="enabled" class="w-auto" {{ 'checked' if not c or c.enabled }}> Enabled (auto-watch)</label>
-    <div class="md:col-span-3 flex gap-2 justify-end">
-      {% if c %}<a class="btn" href="/channels">Cancel</a>{% endif %}
-      <button class="btn btn-p">Save</button></div>
+    <div class="grid md:grid-cols-4 gap-4">
+      <div><label for="c-out">Output</label><select id="c-out" name="outputs">
+        {% for v, l in [('shorts','Shorts (9:16)'),('long','Long (16:9)'),('both','Both')] %}
+        <option value="{{ v }}" {{ 'selected' if c and c.outputs==v }}>{{ l }}</option>{% endfor %}</select></div>
+      <div><label for="c-thr">Score threshold (0–10)</label><input id="c-thr" name="threshold" type="number" min="0" max="10" step="0.1" value="{{ c.threshold if c else 7 }}"></div>
+      <div><label for="c-max">Max clips per stream</label><input id="c-max" name="max_clips_per_stream" type="number" min="0" value="{{ c.max_clips_per_stream if c else 8 }}"></div>
+      <div><label for="c-acc">Post to YouTube account</label><select id="c-acc" name="target_account">
+        {% for a in accounts %}<option {{ 'selected' if c and c.target_account==a }}>{{ a }}</option>{% endfor %}</select></div>
+      <div><label for="c-long">Long part length (s)</label><input id="c-long" name="continuous_len_s" type="number" min="1" value="{{ c.continuous_len_s if c else 600 }}"></div>
+      <div><label for="c-short">Short part length (s)</label><input id="c-short" name="continuous_short_len_s" type="number" min="1" value="{{ c.continuous_short_len_s if c else 55 }}"></div>
+      <div><label for="c-lang">Language hint</label><input id="c-lang" name="language" placeholder="en, hi, ta… blank = auto" value="{{ c.language if c else '' }}"></div>
+      <div><label for="c-tr">Translate captions to</label><input id="c-tr" name="translate_to" placeholder="blank = off" value="{{ c.translate_to if c else '' }}"></div>
+      <div class="md:col-span-4"><label for="c-credit">On-screen credit</label>
+        <input id="c-credit" name="credit_text" aria-describedby="c-credit-hint" value="{{ c.credit_text if c else '' }}">
+        <p id="c-credit-hint" class="hint mt-1">Blank = automatic "Clip from …" for allowed creators.</p></div>
+      <div class="md:col-span-2"><label for="c-tt">Title template <span class="font-normal normal-case">({title}, {channel})</span></label><input id="c-tt" name="title_template" value="{{ c.title_template if c else '{title}' }}"></div>
+      <div class="md:col-span-2"><label for="c-tags">Extra tags <span class="font-normal normal-case">(comma separated)</span></label><input id="c-tags" name="extra_tags" value="{{ c.extra_tags if c else '' }}"></div>
+      <div class="md:col-span-4"><label for="c-desc">Description template <span class="font-normal normal-case">({summary}, {credit}, {hashtags}, {channel}, {title})</span></label>
+        <textarea id="c-desc" name="desc_template" rows="3">{{ c.desc_template if c else '{summary}\n\n{credit}\n\n{hashtags}' }}</textarea></div>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-3">
+      <input id="c-en" type="checkbox" name="enabled" class="w-5 h-5" {{ 'checked' if not c or c.enabled }}>
+      <label for="c-en" class="mb-0">Enabled (watch automatically)</label>
+      <div class="ml-auto flex gap-2">
+        {% if c %}<a class="btn" href="/channels">Cancel</a>{% endif %}
+        <button class="btn btn-p">Save channel <span class="arrow" aria-hidden="true">→</span></button>
+      </div>
+    </div>
   </form>
-</div>
+</section>
 
-<div class="card overflow-x-auto">
-<table class="w-full text-sm">
-  <tr class="text-left text-gray-400"><th>Name</th><th>Platform</th><th>Permission</th><th>Mode</th><th>Output</th><th>Status</th><th></th></tr>
-  {% for ch in chans %}
-  <tr class="border-t border-gray-800">
-    <td class="py-2">{{ ch.name }}</td><td>{{ ch.platform }}</td>
-    <td>{{ ch.permission }}</td><td>{{ ch.mode }}</td><td>{{ ch.outputs }}</td>
-    <td>{% if ch.id in active %}<span class="pill bg-red-700">recording</span>{% elif ch.enabled %}<span class="pill">watching</span>{% else %}<span class="pill">disabled</span>{% endif %}
-      {% if errors.get(ch.id) %}<div class="text-xs text-yellow-400">{{ errors[ch.id] }}</div>{% endif %}</td>
-    <td class="flex gap-1 py-2 justify-end">
-      <a class="btn" href="/channels?edit={{ ch.id }}">Edit</a>
-      <form method="post" action="/channels/{{ ch.id }}/start"><button class="btn">{{ 'Process file' if ch.platform=='file' else 'Record now' }}</button></form>
-      <form method="post" action="/channels/{{ ch.id }}/delete"><button class="btn btn-d">Disable</button></form>
-    </td>
-  </tr>
-  {% else %}<tr><td colspan="7" class="text-gray-400 py-3">No channels yet.</td></tr>{% endfor %}
-</table>
-</div>
+<section class="card overflow-x-auto fade-up" aria-labelledby="list-title">
+  <h2 id="list-title" class="display text-3xl mb-4">All <span class="serif">channels</span></h2>
+  <table class="w-full text-sm">
+    <thead><tr><th scope="col">Name</th><th scope="col">Platform</th><th scope="col">Permission</th><th scope="col">Mode</th><th scope="col">Output</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+    <tbody>
+    {% for ch in chans %}
+    <tr>
+      <th scope="row" class="font-bold normal-case text-sm tracking-normal border-b border-[#e4e3df]">{{ ch.name }}</th><td>{{ ch.platform }}</td>
+      <td>{{ ch.permission }}</td><td>{{ ch.mode }}</td><td>{{ ch.outputs }}</td>
+      <td>{% if ch.id in active %}<span class="pill pill-live">Recording</span>{% elif ch.enabled %}<span class="pill pill-blue">Watching</span>{% else %}<span class="pill">Disabled</span>{% endif %}
+        {% if errors.get(ch.id) %}<p class="warn text-xs mt-1">{{ errors[ch.id] }}</p>{% endif %}</td>
+      <td><div class="flex flex-wrap gap-2 justify-end">
+        <a class="btn" href="/channels?edit={{ ch.id }}">Edit<span class="sr-only"> {{ ch.name }}</span></a>
+        <form method="post" action="/channels/{{ ch.id }}/start"><button class="btn">{{ 'Process file' if ch.platform=='file' else 'Record now' }}<span class="sr-only"> {{ ch.name }}</span></button></form>
+        <form method="post" action="/channels/{{ ch.id }}/delete"><button class="btn btn-d">Disable<span class="sr-only"> {{ ch.name }}</span></button></form>
+      </div></td>
+    </tr>
+    {% else %}<tr><td colspan="7" class="hint">No channels yet.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</section>
 {% endblock %}

@@ -77,7 +77,7 @@ def _run_desktop() -> None:
             threading.Event().wait()   # keep the pipeline running until the process is killed
         return
     webview.create_window("StreamClipper", url, width=1280, height=860, min_size=(900, 600),
-                          background_color="#0b0f17")
+                          background_color="#f4f4f4")
     webview.start()
     if server:   # window closed: shut the pipeline down cleanly
         server.should_exit = True

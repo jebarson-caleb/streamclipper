@@ -1,51 +1,65 @@
-<div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-  <div class="card"><label>Recording</label><div class="text-2xl font-bold">{{ recording }}</div></div>
-  <div class="card"><label>Local LLM (Ollama)</label><div class="text-lg font-bold {{ 'text-green-400' if llm else 'text-red-400' }}">{{ 'online' if llm else 'offline' }}</div></div>
-  <div class="card"><label>GPU</label>
-    {% if gpu %}<div class="text-lg font-bold">{{ gpu.used }}/{{ gpu.total }} MB</div><div class="text-xs text-gray-400">{{ gpu.name }} · {{ gpu.util }}%</div>
-    {% else %}<div class="text-gray-400">n/a</div>{% endif %}</div>
-  <div class="card"><label>Disk free</label><div class="text-lg font-bold {{ 'text-red-400' if disk < 20 else '' }}">{{ '%.0f' % disk }} GB</div></div>
-  <div class="card"><label>YouTube quota today</label>
-    {% for a, q in quota.items() %}<div class="text-sm">{{ a }}: {{ q }}/{{ daily_quota }}</div>{% else %}<div class="text-yellow-400 text-sm">no account connected</div>{% endfor %}
+<section aria-labelledby="health-title" class="space-y-4">
+  <h2 id="health-title" class="sr-only">System health</h2>
+  <ul class="grid grid-cols-2 md:grid-cols-5 gap-4">
+    <li class="card-flat"><span class="label">Recording</span><span class="display text-5xl">{{ recording }}</span></li>
+    <li class="card-flat"><span class="label">Local LLM</span>
+      <span class="display text-2xl {{ 'ok' if llm else 'bad' }}">{{ 'Online' if llm else 'Offline' }}</span><span class="hint block">Ollama</span></li>
+    <li class="card-flat"><span class="label">GPU</span>
+      {% if gpu %}<span class="display text-2xl">{{ gpu.used }}<span class="serif text-lg">/{{ gpu.total }} MB</span></span><span class="hint block">{{ gpu.name }} · {{ gpu.util }}%</span>
+      {% else %}<span class="hint">Not available</span>{% endif %}</li>
+    <li class="card-flat"><span class="label">Disk free</span><span class="display text-3xl {{ 'bad' if disk < 20 else '' }}">{{ '%.0f' % disk }} GB</span></li>
+    <li class="card-flat"><span class="label">YouTube quota</span>
+      {% for a, q in quota.items() %}<span class="block text-sm font-semibold">{{ a }}: {{ q }}/{{ daily_quota }}</span>
+      {% else %}<span class="warn text-sm font-semibold">No account connected</span>{% endfor %}</li>
+  </ul>
+
+  <div class="card flex flex-wrap gap-3 items-center">
+    <p class="text-sm">Pipeline <b class="{{ 'warn' if paused else 'ok' }}">{{ 'PAUSED' if paused else 'RUNNING' }}</b>
+      <span aria-hidden="true">·</span> {{ 'Review mode: you approve clips' if review else 'Fully automatic' }}</p>
+    <form method="post" action="/pause" class="md:ml-auto"><button class="btn {{ 'btn-p' if paused else '' }}">{{ 'Resume pipeline' if paused else 'Pause pipeline' }}</button></form>
+    <ul class="w-full flex flex-wrap gap-2" aria-label="Clips by status">
+      {% for k in ['pending','rendering','ready','approved','scheduled','published','failed'] %}
+      <li><a href="/clips?status={{ k }}" class="pill {{ 'pill-blue' if k=='published' else '' }}">{{ k }}: {{ counts.get(k, 0) }}</a></li>
+      {% endfor %}
+    </ul>
   </div>
-</div>
+</section>
 
-<div class="card flex flex-wrap gap-2 items-center">
-  <span class="text-sm">Pipeline: <b class="{{ 'text-yellow-400' if paused else 'text-green-400' }}">{{ 'PAUSED' if paused else 'running' }}</b>
-    · mode: <b>{{ 'review (approve clips manually)' if review else 'fully automatic' }}</b></span>
-  <form method="post" action="/pause" class="ml-auto"><button class="btn">{{ 'Resume' if paused else 'Pause' }}</button></form>
-  {% for k in ['pending','rendering','ready','approved','scheduled','published','failed'] %}
-    <a href="/clips?status={{ k }}" class="pill">{{ k }}: {{ counts.get(k, 0) }}</a>
-  {% endfor %}
-</div>
-
-<h2 class="font-semibold mt-2">Live / processing</h2>
-{% for st, ch, svg in live %}
-<div class="card space-y-2">
-  <div class="flex flex-wrap items-center gap-2">
-    <span class="pill {{ 'bg-red-700' if st.status=='live' else '' }}">{{ st.status }}</span>
-    <b>{{ ch.name }}</b><span class="text-gray-400 text-sm truncate max-w-md">{{ st.title }}</span>
-    <span class="text-xs text-gray-400">{{ st.duration|hms }} captured · scanned to {{ st.detected_until|hms }}</span>
-    <div class="ml-auto flex gap-2">
-      <form method="post" action="/streams/{{ st.id }}/clip_now"><button class="btn btn-p" title="Clip the last ~60 seconds">✂ Clip last 60s</button></form>
-      <a class="btn" href="/moments?stream={{ st.id }}">Moments</a>
-      {% if st.status=='live' %}<form method="post" action="/channels/{{ ch.id }}/stop"><button class="btn btn-d">Stop</button></form>{% endif %}
+<section class="on-dark -mx-5 px-5 py-10 space-y-5" aria-labelledby="live-title">
+  <div class="text-center">
+    <p class="eyebrow">Recording, scanning and cutting right now</p>
+    <h2 id="live-title" class="display section-title">Live <span class="serif">now</span></h2>
+  </div>
+  {% for st, ch, svg in live %}
+  <article class="card space-y-3" aria-label="{{ ch.name }} stream">
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="pill {{ 'pill-live' if st.status=='live' else '' }}">{{ st.status }}</span>
+      <h3 class="display text-2xl">{{ ch.name }}</h3>
+      <span class="hint truncate max-w-md">{{ st.title }}</span>
+      <div class="md:ml-auto flex flex-wrap gap-2">
+        <form method="post" action="/streams/{{ st.id }}/clip_now"><button class="btn btn-pink">Clip last 60s</button></form>
+        <a class="btn" href="/moments?stream={{ st.id }}">Moments <span class="arrow" aria-hidden="true">→</span></a>
+        {% if st.status=='live' %}<form method="post" action="/channels/{{ ch.id }}/stop"><button class="btn btn-d">Stop<span class="sr-only"> recording {{ ch.name }}</span></button></form>{% endif %}
+      </div>
     </div>
-  </div>
-  {{ svg|safe }}
-  <div class="text-xs text-gray-500">blue = hype curve, dashed = candidate threshold</div>
-</div>
-{% else %}
-<div class="card text-gray-400 text-sm">Nothing live. Channels are checked automatically; add them on the Channels page.</div>
-{% endfor %}
+    <p class="hint">{{ st.duration|hms }} captured · scanned to {{ st.detected_until|hms }}</p>
+    {{ svg|safe }}
+    <p class="hint text-xs">Line: hype curve. Dashed: candidate threshold.</p>
+  </article>
+  {% else %}
+  <p class="card text-center">Nothing live. Channels are checked automatically; add them on the <a class="underline" href="/channels">Channels</a> page.</p>
+  {% endfor %}
+</section>
 
-<h2 class="font-semibold mt-2">Latest clips</h2>
-<div class="grid md:grid-cols-2 gap-2">
-{% for c in recent %}
-  <a href="/clips#clip{{ c.id }}" class="card flex gap-2 items-center hover:border-sky-700">
-    <span class="pill">{{ c.format }}</span><span class="pill">{{ c.status }}</span>
-    <span class="truncate text-sm">{{ c.title or ('clip ' ~ c.id) }}</span>
-    <span class="ml-auto text-xs text-gray-400">{{ '%.1f' % c.score }}</span>
-  </a>
-{% else %}<div class="text-gray-400 text-sm">No clips yet.</div>{% endfor %}
-</div>
+<section aria-labelledby="latest-title" class="space-y-4">
+  <h2 id="latest-title" class="display section-title">Latest <span class="serif">clips</span></h2>
+  <ul class="grid md:grid-cols-2 gap-3">
+  {% for c in recent %}
+    <li><a href="/clips#clip{{ c.id }}" class="card-flat flex gap-2 items-center hover:outline hover:outline-2">
+      <span class="pill">{{ c.format }}</span><span class="pill">{{ c.status }}</span>
+      <span class="truncate text-sm font-semibold">{{ c.title or ('Clip ' ~ c.id) }}</span>
+      <span class="ml-auto text-sm"><span class="sr-only">Score </span>{{ '%.1f' % c.score }}</span>
+    </a></li>
+  {% else %}<li class="hint">No clips yet.</li>{% endfor %}
+  </ul>
+</section>
