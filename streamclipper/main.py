@@ -32,6 +32,7 @@ def _run_dashboard(open_browser: bool = False) -> None:
 
     s = get_settings()
     url = f"http://{s.dashboard.host}:{s.dashboard.port}"
+    _warn_if_exposed(s.dashboard.host)
     if _port_in_use(s.dashboard.host, s.dashboard.port):
         print(f"StreamClipper is already running: {url}")
         if open_browser:
@@ -45,6 +46,13 @@ def _run_dashboard(open_browser: bool = False) -> None:
     uvicorn.run(app, host=s.dashboard.host, port=s.dashboard.port, log_level="warning")
 
 
+def _warn_if_exposed(host: str) -> None:
+    if host not in ("127.0.0.1", "localhost", "::1"):
+        log.warning("dashboard.host is %s: the dashboard has NO login, so anyone who can reach this PC on that "
+                    "address can control StreamClipper and your YouTube uploads. Use 127.0.0.1 unless you "
+                    "know your network is private.", host)
+
+
 def _run_desktop() -> None:
     """Open the dashboard in its own window. Starts the pipeline too, unless it is already running."""
     import subprocess
@@ -56,6 +64,7 @@ def _run_desktop() -> None:
 
     s = get_settings()
     url = f"http://{s.dashboard.host}:{s.dashboard.port}"
+    _warn_if_exposed(s.dashboard.host)
     server = None
     if not _port_in_use(s.dashboard.host, s.dashboard.port):
         import uvicorn

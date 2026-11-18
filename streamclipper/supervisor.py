@@ -155,6 +155,9 @@ class Supervisor:
         platform = detect_platform(url)
         if permission not in ("own", "allowed"):
             raise ValueError("Choose 'my own stream' or 'creator allowed it' before clipping.")
+        if mode not in ("best_moments", "continuous", "hybrid") or outputs not in ("shorts", "long", "both"):
+            raise ValueError("Unknown mode or output.")
+        name = name[:80]
         with session() as db:
             ch = db.exec(select(Channel).where(Channel.url == url)).first()
             if not ch:

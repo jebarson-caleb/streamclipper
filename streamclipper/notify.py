@@ -23,4 +23,5 @@ async def notify(text: str) -> None:
                 await c.post(f"https://api.telegram.org/bot{n.telegram_bot_token}/sendMessage",
                              json={"chat_id": n.telegram_chat_id, "text": text[:4000]})
     except httpx.HTTPError as e:
-        log.warning("notification failed: %s", e)
+        msg = str(e).replace(n.telegram_bot_token, "<token>") if n.telegram_bot_token else str(e)
+        log.warning("notification failed: %s", msg.replace(n.discord_webhook, "<webhook>") if n.discord_webhook else msg)

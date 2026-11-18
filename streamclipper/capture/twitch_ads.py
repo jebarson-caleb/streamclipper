@@ -51,7 +51,7 @@ class TwitchAdWatcher:
     def _playlist_url(self) -> str:
         flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         r = subprocess.run([sys.executable, "-m", "yt_dlp", "--no-warnings", "-g", "-f", "b[height<=720]/b",
-                            self.url], capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                            "--", self.url], capture_output=True, text=True, stdin=subprocess.DEVNULL,
                            creationflags=flags, timeout=60)
         return r.stdout.strip().splitlines()[0] if r.returncode == 0 and r.stdout.strip() else ""
 

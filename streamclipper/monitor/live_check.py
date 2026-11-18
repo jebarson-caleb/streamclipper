@@ -126,7 +126,7 @@ async def _direct(url: str) -> LiveStatus:
     try:
         proc = await asyncio.create_subprocess_exec(
             FFPROBE, "-v", "error", "-rw_timeout", "15000000", *ca_args(url), "-show_entries", "format=format_name",
-            "-of", "csv=p=0", url, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+            "-of", "csv=p=0", "-i", url, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
         out, err = await asyncio.wait_for(proc.communicate(), 30)
         if proc.returncode == 0:
             return LiveStatus(True, title=Path(url.split("?")[0]).stem, backend="direct")

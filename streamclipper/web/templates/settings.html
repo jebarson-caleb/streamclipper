@@ -37,7 +37,7 @@
 
 <section class="on-dark -mx-5 px-5 py-10 fade-up" aria-labelledby="cfg-title">
   <h2 id="cfg-title" class="display section-title text-center">Active <span class="serif">config</span></h2>
-  <p class="hint text-center mb-4">Edit <code>config.yaml</code> and restart to change these.</p>
-  <pre class="card text-xs whitespace-pre-wrap overflow-x-auto" tabindex="0" aria-label="Active configuration">{{ s.model_dump_json(indent=2) }}</pre>
+  <p class="hint text-center mb-4">Edit <code>config.yaml</code> and restart to change these. Notification tokens and webhooks are hidden.</p>
+  <pre class="card text-xs whitespace-pre-wrap overflow-x-auto" tabindex="0" aria-label="Active configuration">{{ config_json }}</pre>
 </section>
 {% endblock %}

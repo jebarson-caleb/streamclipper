@@ -1,6 +1,6 @@
 [project]
 name = "streamclipper"
-version = "0.2.0"
+version = "0.2.1"
 description = "Local-AI live stream clipper that auto-subtitles clips and schedules them to YouTube"
 requires-python = ">=3.11"
 dependencies = [

@@ -57,7 +57,10 @@ Get-ChildItem "vendor\llama" -File | Where-Object { ($_.Extension -eq ".dll" -an
     Copy-Item -Destination "$app\vendor\llama"
 Remove-Item "$app\vendor\ffmpeg\.ok" -ErrorAction SilentlyContinue
 Set-Content "$app\vendor\.packaged" "installed layout"
-Copy-Item config.example.yaml, LICENSE, packaging\icon.ico $app
+Copy-Item config.example.yaml, LICENSE, DISCLAIMER.md, packaging\icon.ico $app
+# the installer's license page (must be accepted): disclaimer and terms of use, then the MIT license
+$terms = (Get-Content DISCLAIMER.md -Raw) + "`r`n`r`n" + ("-" * 70) + "`r`n`r`n" + (Get-Content LICENSE -Raw)
+Set-Content -Encoding utf8 "$app\TERMS.txt" $terms
 
 # precompile so the first launch is quick
 & "$app\runtime\python.exe" -m compileall -q -j 0 $site | Out-Null

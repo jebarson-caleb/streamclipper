@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import re
+import string
 
 from ..detect.llm import LLMError, chat_json
 from ..models import Channel
@@ -54,6 +55,38 @@ def clean_title(t: str, limit: int = 100) -> str:
     return t[:limit] or "Stream highlight"
 
 
+_LINK = re.compile(r"(?i)\b(?:https?://|www\.)\S+|\b[\w-]+(?:\.[\w-]+)*\.(?:com|net|org|gg|io|tv|ly|me|xyz|ru|cn|link|click|shop|app)\b(?:/\S*)?")
+
+
+def no_links(text: str) -> str:
+    """Strip links from AI-written text. The AI reads viewers' chat and speech, so someone could try to get a
+    spam or scam link into your published title/description; your own templates and credit line keep theirs."""
+    return re.sub(r"\s{2,}", " ", _LINK.sub("", text)).strip()
+
+
+class _Fields(string.Formatter):
+    """str.format for user templates, limited to plain {name} fields (no {x.attr} / {x[0]}); a stray brace
+    is printed as-is instead of failing the upload."""
+
+    def __init__(self, values: dict[str, str]):
+        self.values = values
+
+    def get_field(self, field_name, args, kwargs):
+        if not re.fullmatch(r"\w+", field_name):
+            raise ValueError(field_name)
+        return self.values.get(field_name, ""), field_name
+
+
+def fill_template(template: str, **values: str) -> str:
+    try:
+        return _Fields(values).vformat(template, (), {})
+    except (ValueError, IndexError, KeyError):
+        out = template
+        for k, v in values.items():
+            out = out.replace("{" + k + "}", v)
+        return out
+
+
 async def build_metadata(ch: Channel, fmt: str, title_hint: str, transcript: str, category: str,
                          extra_desc: str = "", context: str = "") -> tuple[str, str, list[str]]:
     """title_hint: a title to polish. context: background only (e.g. the stream title) — the LLM must
@@ -69,21 +102,20 @@ async def build_metadata(ch: Channel, fmt: str, title_hint: str, transcript: str
             data = await chat_json(SYSTEM, user)
         except LLMError as e:
             log.warning("metadata LLM failed: %s", e)
-    title = clean_title(str(data.get("title") or title_hint or context or f"{ch.name} stream highlight"))
-    summary = str(data.get("summary") or "")
-    tags = [t.lower() for t in as_list(data.get("tags"))]
+    title = clean_title(no_links(str(data.get("title") or "")) or title_hint or context or f"{ch.name} stream highlight")
+    summary = no_links(str(data.get("summary") or ""))
+    tags = [no_links(t).lower() for t in as_list(data.get("tags")) if no_links(t)]
     tags += [t.strip().lower() for t in ch.extra_tags.split(",") if t.strip()]
     tags += [ch.name.lower(), category] if category else [ch.name.lower()]
-    hashtags = [h.lstrip("#") for h in as_list(data.get("hashtags"), split_spaces=True) if h.lstrip("#")][:5]
+    hashtags = [re.sub(r"\W", "", h) for h in as_list(data.get("hashtags"), split_spaces=True)]
+    hashtags = [h for h in hashtags if h][:5]
     if fmt == "short" and "shorts" not in [h.lower() for h in hashtags]:
         hashtags.append("shorts")
-    full_title = clean_title(ch.title_template.replace("{title}", title).replace("{channel}", ch.name))
+    full_title = clean_title(fill_template(ch.title_template, title=title, channel=ch.name))
     if fmt == "short" and "#shorts" not in full_title.lower() and len(full_title) <= 90:
         full_title += " #shorts"
-    desc = ch.desc_template.format_map(_Safe(
-        title=title, summary=summary, credit=credit_line(ch), channel=ch.name,
-        hashtags=" ".join(f"#{h}" for h in hashtags),
-    ))
+    desc = fill_template(ch.desc_template, title=title, summary=summary, credit=credit_line(ch), channel=ch.name,
+                         hashtags=" ".join(f"#{h}" for h in hashtags))
     if extra_desc:
         desc = f"{desc}\n\n{extra_desc}"
     # YouTube limits: tags total <= 500 chars, description <= 5000
@@ -96,7 +128,3 @@ async def build_metadata(ch: Channel, fmt: str, title_hint: str, transcript: str
             total += len(t) + 1
     return full_title, re.sub(r"\n{3,}", "\n\n", desc).strip()[:4900], out_tags
 
-
-class _Safe(dict):
-    def __missing__(self, key):
-        return ""

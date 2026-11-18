@@ -80,9 +80,9 @@ class Recorder:
             # muxed source (Twitch, most sites): yt-dlp pipes it straight to stdout
             return [sys.executable, "-m", "yt_dlp", "-q", "--no-warnings", "--no-part", "--no-playlist",
                     "-f", self._LIVE_FMT, "--merge-output-format", "mkv",
-                    "--hls-use-mpegts", "--ffmpeg-location", FFMPEG, "-o", "-", url]
+                    "--hls-use-mpegts", "--ffmpeg-location", FFMPEG, "-o", "-", "--", url]
         return [sys.executable, "-m", "streamlink", "--loglevel", "warning", "--twitch-disable-ads",
-                "--hls-live-edge", "3", "--ffmpeg-ffmpeg", FFMPEG, "-O", url, get_settings().capture.quality]
+                "--hls-live-edge", "3", "--ffmpeg-ffmpeg", FFMPEG, "-O", "--", url, get_settings().capture.quality]
 
     _FMT = ("bv*[height<=720][vcodec^=avc1]+ba[acodec^=mp4a]/bv*[height<=720][vcodec^=avc1]+ba/"
             "bv*[height<=720]+ba/b[height<=720]/bv*+ba/b")
@@ -99,7 +99,7 @@ class Recorder:
             r = subprocess.run(
                 [sys.executable, "-m", "yt_dlp", "-q", "--no-warnings", "--no-playlist", "-f", self._FMT,
                  "--merge-output-format", "mp4", "--ffmpeg-location", FFMPEG, "--retries", "10",
-                 "-o", str(out), self.channel.url],
+                 "-o", str(out), "--", self.channel.url],
                 stdin=subprocess.DEVNULL, capture_output=True, text=True, creationflags=flags)
             files = [p for p in self.dir.glob("source.*") if p.suffix not in (".part", ".ytdl")]
             if r.returncode == 0 and files:

@@ -160,7 +160,7 @@ class ChatReader:
         out = Path(self.stream.dir) / "chat"
         flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         proc = subprocess.Popen([sys.executable, "-m", "yt_dlp", "-q", "--no-warnings", "--skip-download",
-                                 "--write-subs", "--sub-langs", "live_chat", "-o", str(out), self.url],
+                                 "--write-subs", "--sub-langs", "live_chat", "-o", str(out), "--", self.url],
                                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                                 creationflags=flags)
         path = out.with_name(out.name + ".live_chat.json.part")

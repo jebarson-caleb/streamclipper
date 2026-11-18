@@ -19,14 +19,33 @@ _DIRECT_SCHEMES = ("rtmp", "rtmps", "rtsp", "srt", "udp", "rtp")
 _DIRECT_EXT = (".m3u8", ".mpd", ".flv", ".ts", ".mp4", ".mkv")
 
 
+_ALLOWED_SCHEMES = ("http", "https", *_DIRECT_SCHEMES)
+
+
 def normalize_url(url: str) -> str:
+    """A safe source: an existing local video file (absolute path) or a network URL with a known scheme.
+
+    Raises ValueError otherwise. The result is passed to yt-dlp / streamlink / ffmpeg, so it must never look
+    like a command-line option (e.g. "--exec=..." or "--config-locations=...")."""
     url = url.strip().strip('"').strip("'")
     if not url:
-        return url
-    if Path(url).exists():
-        return str(Path(url).resolve())
+        raise ValueError("Paste a live link or a video file path.")
+    if any(ord(c) < 32 or c == "\x7f" for c in url) or url.startswith("-"):
+        raise ValueError("That doesn't look like a link or a file path.")
+    p = Path(url)
+    if p.exists():
+        if not p.is_file():
+            raise ValueError("That's a folder; paste the path of a video file.")
+        return str(p.resolve())
+    if re.match(r"[A-Za-z]:[\\/]", url) or url.startswith(("\\", "/")):   # a path that isn't an existing file
+        raise ValueError(f"File not found: {url}")
     if "://" not in url:
+        if re.match(r"[A-Za-z][\w+.-]*:(?!\d)", url):   # "concat:", "javascript:", "file:" ... (not host:port)
+            raise ValueError("Not a supported link: use an http(s), RTMP, RTSP or SRT address, or a video file path.")
         url = "https://" + url
+    parsed = urlparse(url)
+    if parsed.scheme.lower() not in _ALLOWED_SCHEMES or not parsed.hostname or any(c.isspace() for c in url):
+        raise ValueError("Not a supported link: use an http(s), RTMP, RTSP or SRT address, or a video file path.")
     return url
 
 

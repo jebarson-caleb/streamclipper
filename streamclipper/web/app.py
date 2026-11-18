@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -37,7 +38,47 @@ async def lifespan(_app: FastAPI):
     await sup.stop()
 
 
-app = FastAPI(title="StreamClipper", lifespan=lifespan)
+app = FastAPI(title="StreamClipper", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+
+_LOOPBACK = ("127.0.0.1", "localhost", "[::1]")
+_SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
+
+
+def _allowed_hosts() -> set[str] | None:
+    """Host headers the dashboard answers to; None = any (dashboard deliberately exposed on the network)."""
+    d = get_settings().dashboard
+    if d.host not in ("127.0.0.1", "localhost", "::1"):
+        return None
+    return {f"{h}:{d.port}" for h in _LOOPBACK}
+
+
+@app.middleware("http")
+async def local_guard(request: Request, call_next):
+    """Block other websites from driving the dashboard: DNS rebinding (wrong Host) and cross-site form posts
+    (CSRF). Browsers always send Origin or Sec-Fetch-Site on POST; the CLI `add` command sends neither."""
+    from fastapi.responses import PlainTextResponse
+
+    hosts = _allowed_hosts()
+    host = (request.headers.get("host") or "").lower()
+    if hosts is not None and host not in hosts:
+        return PlainTextResponse("StreamClipper only answers on localhost.", 403)
+    if request.method not in _SAFE_METHODS:
+        origin = request.headers.get("origin")
+        site = request.headers.get("sec-fetch-site")
+        if origin is not None:
+            ok = origin.lower() == f"http://{host}"
+        else:
+            ok = site in (None, "same-origin", "none")
+        if not ok:
+            log.warning("blocked cross-site %s %s (origin=%s)", request.method, request.url.path, origin)
+            return PlainTextResponse("Cross-site request blocked.", 403)
+    resp = await call_next(request)
+    resp.headers.setdefault("X-Frame-Options", "DENY")
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    # "same-origin", not "no-referrer": with no-referrer Chrome sends Origin: null on our own form posts
+    resp.headers.setdefault("Referrer-Policy", "same-origin")
+    resp.headers.setdefault("Content-Security-Policy", "frame-ancestors 'none'; form-action 'self'; base-uri 'self'")
+    return resp
 
 
 def _fmt_dt(d: datetime | None) -> str:
@@ -107,10 +148,14 @@ async def setup_client_secret(request: Request):
 
     form = await request.form()
     up = form.get("file")
-    data = await up.read() if up is not None and hasattr(up, "read") else b""
+    data = await up.read(65537) if up is not None and hasattr(up, "read") else b""
     try:
+        if len(data) > 65536:
+            raise ValueError("file is too large to be a Google client file")
         info = json.loads(data.decode("utf-8"))
-        if "installed" not in info:
+        inst = info.get("installed") if isinstance(info, dict) else None
+        if not (isinstance(inst, dict) and isinstance(inst.get("client_id"), str)
+                and isinstance(inst.get("client_secret"), str)):
             raise ValueError("this is not a Desktop app OAuth client file")
     except (ValueError, UnicodeDecodeError) as e:
         return RedirectResponse(f"/welcome?msg={quote('Could not use that file: ' + str(e))}#youtube", 303)
@@ -150,12 +195,12 @@ async def toggle_pause():
 
 # --------------------------------------------------------------------------- channels
 @app.get("/channels", response_class=HTMLResponse)
-async def channels(request: Request, edit: int | None = None):
+async def channels(request: Request, edit: int | None = None, msg: str = ""):
     with session() as db:
         chans = db.exec(select(Channel).order_by(Channel.id)).all()
         editing = db.get(Channel, edit) if edit else None
     return templates.TemplateResponse(request, "channels.html", {
-        "page": "channels", "chans": chans, "editing": editing, "errors": sup.last_error,
+        "page": "channels", "chans": chans, "editing": editing, "errors": sup.last_error, "msg": msg,
         "active": set(sup.active), "accounts": connected_accounts() or ["default"]})
 
 
@@ -165,18 +210,42 @@ CHANNEL_FIELDS = ["name", "platform", "url", "permission", "permission_note", "m
                   "extra_tags"]
 
 
+MODES = ("best_moments", "continuous", "hybrid")
+OUTPUTS = ("shorts", "long", "both")
+PERMISSIONS = ("own", "allowed", "none")
+
+
 @app.post("/channels/save")
 async def save_channel(request: Request):
+    from urllib.parse import quote
+
     form = await request.form()
-    cid = form.get("id")
+    cid = str(form.get("id") or "")
     with session() as db:
-        ch = db.get(Channel, int(cid)) if cid else Channel(name="", url="")
-        for f in CHANNEL_FIELDS:
-            if f in form:
-                cur = getattr(ch, f)
-                val = form[f]
-                setattr(ch, f, type(cur)(val) if isinstance(cur, (int, float)) and val != "" else val)
-        ch.url = normalize_url(ch.url)
+        ch = db.get(Channel, int(cid)) if cid.isdigit() else Channel(name="", url="")
+        if ch is None:
+            raise HTTPException(404)
+        try:
+            for f in CHANNEL_FIELDS:
+                if f in form:
+                    cur = getattr(ch, f)
+                    val = str(form[f])
+                    if isinstance(cur, (int, float)) and not isinstance(cur, bool):
+                        if val == "":
+                            continue
+                        raw = float(val)
+                        if not math.isfinite(raw) or raw < 0:
+                            raise ValueError(f"{f.replace('_', ' ')} must be a number of 0 or more")
+                        num = int(raw) if isinstance(cur, int) else raw
+                        setattr(ch, f, num)
+                    else:
+                        setattr(ch, f, val[:5000])
+            ch.threshold = min(ch.threshold, 10.0)
+            if ch.mode not in MODES or ch.outputs not in OUTPUTS or ch.permission not in PERMISSIONS:
+                raise ValueError("unknown mode, output or permission")
+            ch.url = normalize_url(ch.url)
+        except ValueError as e:
+            return RedirectResponse(f"/channels?msg={quote('Not saved: ' + str(e))}", 303)
         if ch.platform in ("", "auto"):
             ch.platform = detect_platform(ch.url)
         ch.enabled = form.get("enabled") == "on"
@@ -209,7 +278,10 @@ async def start_channel(cid: int):
 
     msg = ""
     if cid not in sup.active:
-        _ch, msg = await sup.add_link(ch.url, ch.permission, ch.mode, ch.outputs, ch.name, ch.enabled)
+        try:
+            _ch, msg = await sup.add_link(ch.url, ch.permission, ch.mode, ch.outputs, ch.name, ch.enabled)
+        except ValueError as e:
+            msg = f"⚠️ {e}"
     return RedirectResponse(f"/?msg={quote(msg)}", 303)
 
 
@@ -233,6 +305,9 @@ async def quick_add(url: str = Form(...), permission: str = Form(""), mode: str 
 
 @app.post("/streams/{sid}/clip_now")
 async def clip_now(sid: int):
+    with session() as db:
+        if db.get(Stream, sid) is None:
+            raise HTTPException(404)
     sup.clip_now(sid)
     return RedirectResponse("/", 303)
 
@@ -250,9 +325,13 @@ async def moments(request: Request, stream: int | None = None):
 
 @app.post("/moments/{mid}/force")
 async def force_moment(mid: int, fmt: str = Form("short")):
+    if fmt not in ("short", "long"):
+        raise HTTPException(400, "format must be short or long")
     with session() as db:
         m = db.get(Moment, mid)
-        st = db.get(Stream, m.stream_id)
+        st = db.get(Stream, m.stream_id) if m else None
+        if not m or not st:
+            raise HTTPException(404)
         m.status = "accepted"
         db.add(m)
         db.add(Clip(stream_id=st.id, channel_id=st.channel_id, moment_ids=str(m.id), format=fmt,
@@ -309,7 +388,7 @@ async def media(cid: int, thumb: bool = False):
 async def settings_page(request: Request, msg: str = ""):
     s = get_settings()
     return templates.TemplateResponse(request, "settings.html", {
-        "page": "settings", "s": s, "accounts": connected_accounts(), "msg": msg,
+        "page": "settings", "s": s, "accounts": connected_accounts(), "msg": msg, "config_json": redacted_config(s),
         "secret_ok": Path(s.publish.client_secret).exists(),
         "quota": {a: scheduler.quota_used(a) for a in connected_accounts()}})
 
@@ -321,8 +400,29 @@ async def youtube_connect(account: str = Form("default"), back: str = Form("/set
         msg = f"Connected account '{account}'"
     except Exception as e:
         msg = f"Connect failed: {e}"
+    from urllib.parse import quote
+
     back = back if back in ("/settings", "/welcome") else "/settings"
-    return RedirectResponse(f"{back}?msg={msg}" + ("#youtube" if back == "/welcome" else ""), 303)
+    return RedirectResponse(f"{back}?msg={quote(msg)}" + ("#youtube" if back == "/welcome" else ""), 303)
+
+
+_SECRET_KEYS = ("token", "webhook", "secret", "password", "api_key", "chat_id")
+
+
+def redacted_config(s) -> str:
+    """The settings page shows the active config; never show notification tokens or webhook URLs."""
+    import json
+
+    def scrub(v, key=""):
+        if isinstance(v, dict):
+            return {k: scrub(x, k) for k, x in v.items()}
+        if isinstance(v, list):
+            return [scrub(x, key) for x in v]
+        if v and any(w in key.lower() for w in _SECRET_KEYS) and key != "client_secret":
+            return "•••• (set)"
+        return v
+
+    return json.dumps(scrub(json.loads(s.model_dump_json())), indent=2, ensure_ascii=False)
 
 
 @app.post("/settings/review")

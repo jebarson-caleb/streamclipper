@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 from .candidates import chat_key
 from .llm import LLMError, chat_json
+from ..publish.metadata import no_links
 
 log = logging.getLogger(__name__)
 
@@ -92,8 +93,8 @@ def sanitize(data: dict, start: float, end: float, min_len: float, max_len: floa
         score=max(0.0, min(10.0, num("score", 0))),
         category=cat if cat in CATEGORIES else "other",
         start=s, end=e,
-        title=str(data.get("title", "")).strip()[:100],
-        hook=str(data.get("hook", "")).strip()[:60],
+        title=no_links(str(data.get("title", "")))[:100],   # AI text gets published: no injected links
+        hook=no_links(str(data.get("hook", "")))[:60],
         reason=str(data.get("reason", "")).strip()[:300],
     )
 

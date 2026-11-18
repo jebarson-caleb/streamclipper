@@ -8,6 +8,7 @@ import asyncio
 import hashlib
 import logging
 import re
+import secrets
 import subprocess
 import sys
 import time
@@ -26,6 +27,7 @@ _cpu_only = False
 _last_used = 0.0
 _reaper: asyncio.Task | None = None
 _start_lock = asyncio.Lock()
+_API_KEY = secrets.token_urlsafe(24)   # per launch: other programs/websites can't use the local AI
 
 
 def server_exe() -> Path:
@@ -119,7 +121,7 @@ async def _start(cpu: bool) -> bool:
     global _proc
     cfg = get_settings().llm
     cmd = [str(server_exe()), "-m", str(model_path()), "--host", "127.0.0.1", "--port", str(cfg.server_port),
-           "-c", "4096", "-ngl", "0" if cpu else "99"]
+           "-c", "4096", "-ngl", "0" if cpu else "99", "--api-key", _API_KEY]
     dev = None if cpu else await asyncio.to_thread(_gpu_device)
     if dev:
         cmd += ["--device", dev]
@@ -182,7 +184,7 @@ def stop() -> None:
 async def chat(client: httpx.AsyncClient, system: str, user: str) -> str:
     global _last_used
     await ensure_running()
-    r = await client.post(f"{_url()}/v1/chat/completions", json={
+    r = await client.post(f"{_url()}/v1/chat/completions", headers={"Authorization": f"Bearer {_API_KEY}"}, json={
         "temperature": 0.4, "response_format": {"type": "json_object"},
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]})
     _last_used = time.monotonic()

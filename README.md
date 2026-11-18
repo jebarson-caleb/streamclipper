@@ -189,8 +189,12 @@ tests/              pytest suite
 Issues and pull requests are welcome. Run `pytest` before opening a PR.
 Only clip streams you own or have the creator's permission to clip; the permission guard is there on purpose.
 
+## Disclaimer
+
+StreamClipper is provided **as is, without warranty, and you use it at your own risk**. You are solely responsible for what you record, clip and publish, for having permission to clip it, and for following copyright law and each platform's terms. It is intended only for streams you own or have explicit permission to clip; the authors don't endorse any other use and accept no liability for any use or misuse, including account bans, copyright strikes, claims or penalties. Full terms: [DISCLAIMER.md](DISCLAIMER.md). The installer asks you to accept them.
+
 ## License
-[MIT](LICENSE)
+[MIT](LICENSE), together with the terms in [DISCLAIMER.md](DISCLAIMER.md).
 
 ## Known limits
 - GPU video encoding (NVENC) needs an NVIDIA driver new enough for your ffmpeg build. ffmpeg 9.x needs driver 610 or newer. With an older driver, rendering falls back to the CPU (libx264): it still works, just slower.
