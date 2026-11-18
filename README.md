@@ -3,6 +3,10 @@
 [![CI](https://github.com/jebarson-caleb/streamclipper/actions/workflows/ci.yml/badge.svg)](https://github.com/jebarson-caleb/streamclipper/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+[![StreamClipper in 20 seconds: click to play](docs/media/streamclipper-demo.jpg)](docs/media/streamclipper-demo.mp4)
+
+▶ **Watch the 20-second demo:** [16:9](docs/media/streamclipper-demo.mp4) · [9:16 vertical](docs/media/streamclipper-demo-vertical.mp4)
+
 StreamClipper runs in the background on your PC and does the following:
 
 - watches live streams from **any platform**: paste a link and it works out how to capture it,
